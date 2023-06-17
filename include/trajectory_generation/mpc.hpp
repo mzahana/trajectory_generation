@@ -42,6 +42,35 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // osqp-eigen
 #include <OsqpEigen/OsqpEigen.h>
 
+
+// Function to print a string in yellow with optional variables
+template<typename... Args>
+void printWarn(const char* format, const Args&... args) {
+    printf("\033[1;33m"); // Set text color to yellow
+    printf("[INFO] ");
+    printf(format, args...);
+    printf("\033[0m"); // Reset text color (back to default)
+    printf("\n");
+}
+
+template<typename... Args>
+void printInfo(const char* format, const Args&... args) {
+    printf("\033[1;32m"); // Set text color to green
+    printf("[WARN] ");
+    printf(format, args...);
+    printf("\033[0m"); // Reset text color (back to default)
+    printf("\n");
+}
+
+template<typename... Args>
+void printError(const char* format, const Args&... args) {
+    printf("\033[1;31m"); // Set text color to red
+    printf("[ERROR] ");
+    printf(format, args...);
+    printf("\033[0m"); // Reset text color (back to default)
+    printf("\n");
+}
+
 /** MPC
  * Implements Receding horizon controller for generating optimal trajectory to track a moving object.
  * Assumed model of the drone that is tracking the target is a 3rd order discrete LTI system capturing the translational dynamics.
@@ -64,6 +93,7 @@ class MPC
   
 //   ros::ServiceServer    _engageCtrl_srv;        /** Engages/disengages MPC controller */
 
+  bool                  _debug;                 /** Enable printing debug messages */
   double                _dt;                    /** Prediction time step in seconds */
   std::string           _reference_frame_id;    /** Name of the map (inertial) frame, where the drone localizes */
   
@@ -137,13 +167,12 @@ class MPC
 
   double                _minAltitude;           /** Minimum altitude to commanded by the MPC */
 
-  bool                  _debug;                 /** Enable printing debug messages */
   bool                  _run_test_cases;        /** If true testCase() is executed, no ROS subscribers */
   bool                  _is_MPC_initialized;    /** True if MPC problem is initialized */
   bool                  _engage_controller;     /** **REMOVE** Flag for whether to publish MPC controls as setpoints */
   bool                  _is_mpc_engaged;        /** Flag for whether to publish MPC controls as setpoints */
 
-  bool                  _pub_pose_path;         /** Whether to publish MPC predicted path for visualization in RViz */
+  // bool                  _pub_pose_path;         /** Whether to publish MPC predicted path for visualization in RViz */
 //   std::vector<geometry_msgs::PoseStamped> _posehistory_vector; /** Holds the predicted positions of the MPC, for visualization */
 
   OsqpEigen::Solver     _qpSolver;              /** Object of the quadratic program solver */
@@ -370,6 +399,65 @@ public:
   
   /** Destructor */
   ~MPC();
+
+  /**
+   * @brief Sets _dt
+   * @param dt double prediction sampling time in seconds.
+  */
+  bool setDt(double dt);
+
+  /**
+   * @brief Sets _debug
+   * @param d bool
+  */
+ void setDebug(bool d);
+
+ bool setMPCWindow(int N);
+
+ /**
+  * @brief Sets _state_weight
+  * @param w double weight >= 0
+ */
+ bool set_state_weight(double w);
+
+ /**
+  * @brief Sets _input_weight
+  * @param w double weight >= 0
+ */
+ bool set_input_weight(double w);
+ 
+ /**
+  * @brief Sets _smooth_input_weight
+  * @param w double weight >= 0
+ */
+ bool set_smooth_input_weight(double w);
+
+ void enable_control_smoothing(bool b);
+
+ /**
+  * @brief Sets _alt_above_target
+  * @param h double >=0
+ */
+ bool set_alt_above_target(double h);
+
+ /**
+  * @brief Sets use_6dof_model
+  * @param b bool
+ */
+ void use_6dof_model(bool b);
+
+ /**
+  * @brief Sets _reference_frame_id
+  * @param s std::string
+ */
+ bool set_reference_frame_id(std::string s);
+
+ /**
+  * @brief Sets _minAltitude
+  * @param h double minimum altitude in the generated trajectory >=0
+ */
+ bool set_minimum_altitude(double h);
+
 };
 
 #endif 
