@@ -193,6 +193,69 @@ MPC::set_minimum_altitude(double h)
    return true;
 }
 
+bool
+MPC::set_current_drone_state(Eigen::MatrixXd x)
+{
+   if(x.size() != NUM_OF_STATES)
+   {
+      printError("State vector size %d != %u", (int) x.size(), NUM_OF_STATES);
+      return false;
+   }
+   _current_drone_state.resize(NUM_OF_STATES,1);
+   _current_drone_state = x;
+   return true;
+}
+
+bool 
+MPC::set_current_drone_accel(Eigen::Matrix3d a)
+{
+   if(a.size() != 3)
+   {
+      printError("Inpur accelration vector size %d !=3", (int) a.size());
+      return false;
+   }
+   _current_drone_accel = a;
+}
+
+bool
+MPC::set_maxVel(std::vector<double> v)
+{
+   if(v.size() != 3)
+   {
+      printError("maxVel vector size %d != 3", (int) v.size());
+      return false;
+   }
+   _maxVel.setZero();
+   _maxVel(0) = v[0]; _maxVel(1) = v[1]; _maxVel(2) = v[2];
+   return true;
+}
+
+bool
+MPC::set_maxAccel(std::vector<double> a)
+{
+   if(a.size() != 3)
+   {
+      printError("maxAccel vector size %d != 3", (int) a.size());
+      return false;
+   }
+   _maxAccel.setZero();
+   _maxAccel(0) = a[0]; _maxAccel(1) = a[1]; _maxAccel(2) = a[2];
+   return true;
+}
+
+bool
+MPC::set_maxJerk(std::vector<double> j)
+{
+   if(j.size() != 3)
+   {
+      printError("maxJerk vector size %d != 3", (int) j.size());
+      return false;
+   }
+   _maxJerk.setZero();
+   _maxJerk(0) = j[0]; _maxJerk(1) = j[1]; _maxJerk(2) = j[2];
+   return true;
+}
+
 void 
 MPC::setQ(void)
 {
@@ -659,7 +722,7 @@ MPC::initMPCProblem(void)
    castMPCToQPConstraintBounds();
    if (!initQPSolver())
    {
-      printError("[MPCTracker::initMPCProblem] MPC initialization is not successful.");
+      printError("[MPC::initMPCProblem] MPC initialization is not successful.");
       return false;
    }
 

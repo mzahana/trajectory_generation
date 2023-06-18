@@ -13,6 +13,7 @@
   <depend>custom_trajectory_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>trajectory_msgs</depend>
 
   <buildtool_depend>eigen3_cmake_module</buildtool_depend>

@@ -317,11 +317,6 @@ class MPC
    */
   bool initQPSolver(void);
 
-  /**
-   * @brief Initialize MPC problem.
-   * @return Bool True if initialization is successful
-   */
-  bool initMPCProblem(void);
 
   /**
   * @brief Updates _qpSolver bounds & gradient using _current_drone_state, and _referenceTraj
@@ -401,6 +396,12 @@ public:
   ~MPC();
 
   /**
+   * @brief Initialize MPC problem.
+   * @return Bool True if initialization is successful
+   */
+  bool initMPCProblem(void);
+
+  /**
    * @brief Sets _dt
    * @param dt double prediction sampling time in seconds.
   */
@@ -457,6 +458,25 @@ public:
   * @param h double minimum altitude in the generated trajectory >=0
  */
  bool set_minimum_altitude(double h);
+
+ /**
+  * @brief Sets _current_drone_state
+  * @param x Eigen::MatrixXd
+ */
+ bool set_current_drone_state(Eigen::MatrixXd x);
+
+ /**
+  * @brief Sets _current_drone_accel
+  * @param a Eigen::Matrix3d
+ */
+ bool set_current_drone_accel(Eigen::Matrix3d a);
+
+ bool set_maxVel(std::vector<double> v);
+
+ bool set_maxAccel(std::vector<double> a);
+
+ bool set_maxJerk(std::vector<double> j);
+
 
 };
 

@@ -15,10 +15,11 @@ find_package(osqp REQUIRED)
 find_package(OsqpEigen REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
 #
-# hungarian.cpp
+# mpc.cpp
 #
 add_library(mpc src/mpc.cpp)
 ament_target_dependencies(mpc Eigen3)
@@ -26,6 +27,19 @@ target_link_libraries(mpc OsqpEigen::OsqpEigen osqp::osqp)
 # this line to exports the library
 ament_export_targets(mpc HAS_LIBRARY_TARGET)
 target_include_directories(mpc
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+#
+# mpc_ros.cpp
+#
+add_library(mpc_ros src/mpc_ros.cpp)
+ament_target_dependencies(mpc_ros rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs)
+target_link_libraries(mpc_ros mpc)
+# this line to exports the library
+ament_export_targets(mpc_ros HAS_LIBRARY_TARGET)
+target_include_directories(mpc_ros
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
@@ -51,6 +65,15 @@ install(
 install(
   TARGETS mpc
   EXPORT mpc
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+
+install(
+  TARGETS mpc_ros
+  EXPORT mpc_ros
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
