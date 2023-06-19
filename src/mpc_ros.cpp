@@ -189,7 +189,7 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
    _drone_state_last_t = _drone_state_current_t;
 
 //    // Make sure we have enough state predictions of the target
-   if (msg.states.size() < (_mpcWindow+1) )
+   if (msg.states.size() < (long unsigned int)(_mpcWindow+1) )
    {
       RCLCPP_ERROR(this->get_logger(), "[MPCROS::refTrajCallback] Not enough reference states to consume. Size of reference states %d < MPC steps+1 %d", (int)msg.states.size(), _mpcWindow+1);
       return;
@@ -309,7 +309,7 @@ void
 MPCROS::extractSolution(void)
 {
    auto nx = _mpc->get_num_of_states();
-   auto nu = _mpc->get_num_of_inputs();
+   // auto nu = _mpc->get_num_of_inputs();
 
    auto optimal_state_traj = _mpc->get_optimal_state_traj();
    // auto optimal_control_traj = _mpc->get_optimal_control_traj();
