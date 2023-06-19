@@ -903,7 +903,7 @@ MPC::extractSolution(void)
          // _solution_traj_msg.states[i].position.z = _optimal_state_traj( (i+1)*NUM_OF_STATES+6 );
          // _solution_traj_msg.states[i].velocity.x = _optimal_state_traj( (i+1)*NUM_OF_STATES+1 );
          // _solution_traj_msg.states[i].velocity.y = _optimal_state_traj( (i+1)*NUM_OF_STATES+4 );
-         // _solution_traj_msg.states[i].velocity.z = _optimal_state_traj( (i+1)*NUM_OF_STATES+6 );
+         // _solution_traj_msg.states[i].velocity.z = _optimal_state_traj( (i+1)*NUM_OF_STATES+7 );
          // _solution_traj_msg.states[i].acceleration.x = _optimal_state_traj( (i+1)*NUM_OF_STATES+2 );
          // _solution_traj_msg.states[i].acceleration.y = _optimal_state_traj( (i+1)*NUM_OF_STATES+5 );
          // _solution_traj_msg.states[i].acceleration.z = _optimal_state_traj( (i+1)*NUM_OF_STATES+8 );
@@ -1051,4 +1051,58 @@ void
 MPC::plotSolutions(void)
 {
    return;
+}
+
+bool
+MPC::set_referenceTraj(Eigen::MatrixXd v)
+{
+   if((int)(_referenceTraj.size()) != (int)(NUM_OF_STATES*(_mpcWindow+1)) )
+   {
+      printError("[MPC::set_referenceTraj] input matrix size %d != %d", (int)(_referenceTraj.size()), (int)(NUM_OF_STATES*(_mpcWindow+1)) );
+      return false;
+   }
+   _referenceTraj = v;
+   return true;
+}
+
+Eigen::VectorXd
+MPC::get_optimal_state_traj(void)
+{
+   return _optimal_state_traj;
+}
+
+Eigen::VectorXd
+MPC::get_optimal_control_traj(void)
+{
+   return _optimal_control_traj;
+}
+
+int
+MPC::get_num_of_states(void)
+{
+   return (int)NUM_OF_STATES;
+}
+
+int
+MPC::get_num_of_inputs(void)
+{
+   return (int)NUM_OF_INPUTS;
+}
+
+Eigen::Vector3d
+MPC::get_maxAccel(void)
+{
+   return _maxAccel;
+}
+
+Eigen::Vector3d
+MPC::get_maxVel(void)
+{
+   return _maxVel;
+}
+
+Eigen::Vector3d
+MPC::get_maxJerk(void)
+{
+   return _maxJerk;
 }

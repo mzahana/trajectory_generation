@@ -123,8 +123,6 @@ class MPC
   
   int                   _mpcWindow;             /** Number of prediction steps (N) */
   
-  static const unsigned int      NUM_OF_STATES = 6;             /** Number of UAV states (position, velocity, acceleration) */
-  static const unsigned int      NUM_OF_INPUTS = 3;      /** Number of control inputs of the UAV model. Jerk \in R^3 */
   Eigen::MatrixXd       _A;                     /** Discrete transition matrix */
   Eigen::MatrixXd       _B;                     /** Discrete input matrix */
   double                _state_weight;          /** State weight. */
@@ -324,11 +322,6 @@ class MPC
   bool updateQP(void);
 
   /**
-   * @brief This is the main loop, which executes MPC control loop.
-   */
-  bool mpcLoop(void);
-
-  /**
   * @brief Extracts MPC solutions, contorl/state trajectories, from QP
   * Updates _state_traj_sol, _control_traj_sol
   */
@@ -385,6 +378,9 @@ class MPC
   void plotSolutions(void);
 
 public:
+
+  static const unsigned int      NUM_OF_STATES = 6;             /** Number of UAV states (position, velocity, acceleration) */
+  static const unsigned int      NUM_OF_INPUTS = 3;      /** Number of control inputs of the UAV model. Jerk \in R^3 */
 
   /**
    * @brief Constructor
@@ -477,7 +473,27 @@ public:
 
  bool set_maxJerk(std::vector<double> j);
 
+ /**
+   * @brief This is the main loop, which executes MPC control loop.
+   */
+  bool mpcLoop(void);
 
+  /**
+   * @brief Sets _referenceTraj
+   * @param v Eigen::MatrixXd
+  */
+  bool set_referenceTraj(Eigen::MatrixXd v);
+
+  Eigen::VectorXd get_optimal_state_traj(void);
+
+  Eigen::VectorXd get_optimal_control_traj(void);
+
+  int get_num_of_states(void);
+  int get_num_of_inputs(void);
+
+  Eigen::Vector3d get_maxAccel(void);
+  Eigen::Vector3d get_maxVel(void);
+  Eigen::Vector3d get_maxJerk(void);
 };
 
 #endif 

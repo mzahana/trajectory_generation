@@ -43,7 +43,8 @@ MPCROS::MPCROS(): Node("mpc_trajectory_generator")
     _pub_pose_path = this->get_parameter("pub_pose_path").get_parameter_value().get<bool>();
 
     this->declare_parameter("mpc_window", 10);
-    _mpc->setMPCWindow(this->get_parameter("mpc_window").get_parameter_value().get<int>());
+    _mpcWindow = this->get_parameter("mpc_window").get_parameter_value().get<int>();
+    _mpc->setMPCWindow(_mpcWindow);
 
     this->declare_parameter("state_weight", 1.0);
     _mpc->set_state_weight(this->get_parameter("state_weight").get_parameter_value().get<double>());
@@ -61,7 +62,8 @@ MPCROS::MPCROS(): Node("mpc_trajectory_generator")
     _mpc->set_alt_above_target(this->get_parameter("alt_above_target").get_parameter_value().get<double>());
 
     this->declare_parameter("use_6dof_model", true);
-    _mpc->use_6dof_model(this->get_parameter("use_6dof_model").get_parameter_value().get<bool>());
+    _use_6dof_model = this->get_parameter("use_6dof_model").get_parameter_value().get<bool>();
+    _mpc->use_6dof_model(_use_6dof_model);
 
     this->declare_parameter("reference_frame_id", "map");
     _reference_frame_id = this->get_parameter("reference_frame_id").get_parameter_value().get<std::string>();
@@ -168,73 +170,76 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
    // The MPC rate will be close to the min(odom, _referenceTraj, MPC execution time)
 
    // Make sure we have a new reference trajectory
-//    auto dt = (msg->header.stamp - _ref_traj_last_t).toSec();
-//    if (dt <= 0.0)
-//    {
-//       ROS_ERROR("[MPCTracker::refTrajCallback] Received an old reference trajectory");
-//       return;
-//    }
-//    _ref_traj_last_t = msg->header.stamp;
+   auto dt = rclcpp::Time(msg.header.stamp).seconds() - rclcpp::Time(_ref_traj_last_t).seconds();
+   if (dt <= 0.0)
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Received an old reference trajectory");
+      return;
+   }
+   _ref_traj_last_t = msg.header.stamp;
 
 //    // Make sure we have a new drone state measurement
+   dt = rclcpp::Time(_drone_state_current_t).seconds() - rclcpp::Time(_drone_state_last_t).seconds();
 //    dt = (_drone_state_current_t - _drone_state_last_t).toSec();
-//    if (dt <= 0.0)
-//    {
-//       ROS_ERROR("[MPCTracker::refTrajCallback] Received an old drone state. Return");
-//       return;
-//    }
-//    _drone_state_last_t = _drone_state_current_t;
+   if (dt <= 0.0)
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Received an old drone state. Return");
+      return;
+   }
+   _drone_state_last_t = _drone_state_current_t;
 
 //    // Make sure we have enough state predictions of the target
-//    if (msg->states.size() < (_mpcWindow+1) )
-//    {
-//       ROS_ERROR("[MPCTracker::refTrajCallback] Not enough reference states to consume. Size of reference states %d < MPC steps+1 %d", (int)msg->states.size(), _mpcWindow+1);
-//       return;
-//    }
+   if (msg.states.size() < (_mpcWindow+1) )
+   {
+      RCLCPP_ERROR(this->get_logger(), "[MPCROS::refTrajCallback] Not enough reference states to consume. Size of reference states %d < MPC steps+1 %d", (int)msg.states.size(), _mpcWindow+1);
+      return;
+   }
 
 //    // Update _referenceTraj
-//    _referenceTraj.setZero();
-//    for (int i=0; i<_mpcWindow+1; i++)
-//    {
-//       if (_use_6dof_model)
-//       {
-//          _referenceTraj(i*NUM_OF_STATES+0,0) = msg->states[i].position.x;
-//          _referenceTraj(i*NUM_OF_STATES+1,0) = msg->states[i].velocity.x;
+   _referenceTraj.setZero();
+   for (int i=0; i<_mpcWindow+1; i++)
+   {
+      if (_use_6dof_model)
+      {
+         _referenceTraj(i*_mpc->NUM_OF_STATES+0,0) = msg.states[i].position.x;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+1,0) = msg.states[i].velocity.x;
 
-//          _referenceTraj(i*NUM_OF_STATES+2,0) = msg->states[i].position.y;
-//          _referenceTraj(i*NUM_OF_STATES+3,0) = msg->states[i].velocity.y;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+2,0) = msg.states[i].position.y;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+3,0) = msg.states[i].velocity.y;
 
-//          _referenceTraj(i*NUM_OF_STATES+4,0) = msg->states[i].position.z;
-//          _referenceTraj(i*NUM_OF_STATES+5,0) = msg->states[i].velocity.z;
-//       }
-//       else
-//       {
-//          _referenceTraj(i*NUM_OF_STATES+0,0) = msg->states[i].position.x;
-//          _referenceTraj(i*NUM_OF_STATES+1,0) = msg->states[i].velocity.x;
-//          _referenceTraj(i*NUM_OF_STATES+2,0) = msg->states[i].acceleration.x;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+4,0) = msg.states[i].position.z;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+5,0) = msg.states[i].velocity.z;
+      }
+      else
+      {
+         _referenceTraj(i*_mpc->NUM_OF_STATES+0,0) = msg.states[i].position.x;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+1,0) = msg.states[i].velocity.x;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+2,0) = msg.states[i].acceleration.x;
 
-//          _referenceTraj(i*NUM_OF_STATES+3,0) = msg->states[i].position.y;
-//          _referenceTraj(i*NUM_OF_STATES+4,0) = msg->states[i].velocity.y;
-//          _referenceTraj(i*NUM_OF_STATES+5,0) = msg->states[i].acceleration.y;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+3,0) = msg.states[i].position.y;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+4,0) = msg.states[i].velocity.y;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+5,0) = msg.states[i].acceleration.y;
 
-//          _referenceTraj(i*NUM_OF_STATES+6,0) = msg->states[i].position.z;
-//          _referenceTraj(i*NUM_OF_STATES+7,0) = msg->states[i].velocity.z;
-//          _referenceTraj(i*NUM_OF_STATES+8,0) = msg->states[i].acceleration.z;
-//       }
-//    }
+         _referenceTraj(i*_mpc->NUM_OF_STATES+6,0) = msg.states[i].position.z;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+7,0) = msg.states[i].velocity.z;
+         _referenceTraj(i*_mpc->NUM_OF_STATES+8,0) = msg.states[i].acceleration.z;
+      }
+   }
+   if(!_mpc->set_referenceTraj(_referenceTraj)) return;
+   
 
 //    /* Solve MPC problem ! */
-//    if(!mpcLoop())
-//    {
-//       ROS_ERROR("[MPCTracker::refTrajCallback] Error in mpcLooop");
-//       return;
-//    }
+   if(!_mpc->mpcLoop())
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Error in mpcLooop()");
+      return;
+   }
 
 //    // Extract solutions, updates _optimal_state_traj, _optimal_control_traj, _mpc_ctrl_sol
-//    if(_use_6dof_model)
-//       extractSolution6Dof();
-//    else
-//       extractSolution();
+   if(_use_6dof_model)
+      extractSolution6Dof();
+   else
+      extractSolution();
 
 //    // Publish desired trajectory, visualization, ... etc
 //    if(_pub_pose_path)
@@ -246,4 +251,107 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
 //    _desired_traj_pub.publish(_solution_traj_msg);
 //    // Publish first control solution u[0] to the geometric controller
 //    pubMultiDofTraj();
+}
+
+void
+MPCROS::extractSolution6Dof(void)
+{
+   auto nx = _mpc->get_num_of_states();
+   auto nu = _mpc->get_num_of_inputs();
+
+   auto optimal_state_traj = _mpc->get_optimal_state_traj();
+   auto optimal_control_traj = _mpc->get_optimal_control_traj();
+
+   _solution_traj_msg.states.resize(_mpcWindow);
+   // Update _posehistory_vector for visualiztion
+   _posehistory_vector.resize(_mpcWindow+1);
+   geometry_msgs::msg::PoseStamped pose_msg;
+   double start_t = this->now().seconds();
+   for (int i=0; i < _mpcWindow+1; i++)
+   {
+      int64_t t = static_cast<int64_t>((start_t + (i*_dt))*1e9);
+      pose_msg.header.frame_id=_reference_frame_id;
+      pose_msg.header.stamp = rclcpp::Time(t);
+      pose_msg.pose.position.x = optimal_state_traj(i*nx+0);
+      pose_msg.pose.position.y = optimal_state_traj(i*nx+2);
+      pose_msg.pose.position.z = optimal_state_traj(i*nx+4);
+      pose_msg.pose.orientation.w=1.0; // Keep 0 rotation, for now
+      // _posehistory_vector.insert(_posehistory_vector.begin(), pose_msg);
+      _posehistory_vector[i] = pose_msg;
+
+      if(i<_mpcWindow)
+      {
+         // Fill ROS msg
+         _solution_traj_msg.states[i].time_from_start = (i+1)*_dt;
+         _solution_traj_msg.states[i].position.x = optimal_state_traj( (i+1)*nx+0 );
+         _solution_traj_msg.states[i].position.y = optimal_state_traj( (i+1)*nx+2 );
+         _solution_traj_msg.states[i].position.z = optimal_state_traj( (i+1)*nx+4 );
+         _solution_traj_msg.states[i].velocity.x = optimal_state_traj( (i+1)*nx+1 );
+         _solution_traj_msg.states[i].velocity.y = optimal_state_traj( (i+1)*nx+3 );
+         _solution_traj_msg.states[i].velocity.z = optimal_state_traj( (i+1)*nx+5 );
+         _solution_traj_msg.states[i].acceleration.x = optimal_control_traj(i*nu+0);
+         _solution_traj_msg.states[i].acceleration.y = optimal_control_traj(i*nu+1);
+         _solution_traj_msg.states[i].acceleration.z = optimal_control_traj(i*nu+2);
+      }
+   }
+
+   
+   _solution_traj_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(start_t*1e9));
+   _solution_traj_msg.header.frame_id = _reference_frame_id;
+   _solution_traj_msg.max_acceleration = _mpc->get_maxAccel().maxCoeff();
+   _solution_traj_msg.max_velocity = _mpc->get_maxVel().maxCoeff();
+
+   return;
+
+}
+
+void
+MPCROS::extractSolution(void)
+{
+   auto nx = _mpc->get_num_of_states();
+   auto nu = _mpc->get_num_of_inputs();
+
+   auto optimal_state_traj = _mpc->get_optimal_state_traj();
+   // auto optimal_control_traj = _mpc->get_optimal_control_traj();
+
+   _solution_traj_msg.states.resize(_mpcWindow);
+   // Update _posehistory_vector for visualiztion
+   _posehistory_vector.resize(_mpcWindow+1);
+   geometry_msgs::msg::PoseStamped pose_msg;
+   double start_t = this->now().seconds();
+   for (int i=0; i < _mpcWindow+1; i++)
+   {
+      int64_t t = static_cast<int64_t>((start_t + (i*_dt))*1e9);
+      pose_msg.header.frame_id=_reference_frame_id;
+      pose_msg.header.stamp = rclcpp::Time(t);
+      pose_msg.pose.position.x = optimal_state_traj(i*nx+0);
+      pose_msg.pose.position.y = optimal_state_traj(i*nx+3);
+      pose_msg.pose.position.z = optimal_state_traj(i*nx+6);
+      pose_msg.pose.orientation.w=1.0; // Keep 0 rotation, for now
+      // _posehistory_vector.insert(_posehistory_vector.begin(), pose_msg);
+      _posehistory_vector[i] = pose_msg;
+
+      if(i<_mpcWindow)
+      {
+         // Fill ROS msg
+         _solution_traj_msg.states[i].time_from_start = (i+1)*_dt;
+         _solution_traj_msg.states[i].position.x = optimal_state_traj( (i+1)*nx+0 );
+         _solution_traj_msg.states[i].position.y = optimal_state_traj( (i+1)*nx+3 );
+         _solution_traj_msg.states[i].position.z = optimal_state_traj( (i+1)*nx+6 );
+         _solution_traj_msg.states[i].velocity.x = optimal_state_traj( (i+1)*nx+1 );
+         _solution_traj_msg.states[i].velocity.y = optimal_state_traj( (i+1)*nx+4 );
+         _solution_traj_msg.states[i].velocity.z = optimal_state_traj( (i+1)*nx+7 );
+         _solution_traj_msg.states[i].acceleration.x = optimal_state_traj(i*nx+2);
+         _solution_traj_msg.states[i].acceleration.y = optimal_state_traj(i*nx+5);
+         _solution_traj_msg.states[i].acceleration.z = optimal_state_traj(i*nx+8);
+      }
+   }
+
+   
+   _solution_traj_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(start_t*1e9));
+   _solution_traj_msg.header.frame_id = _reference_frame_id;
+   _solution_traj_msg.max_acceleration = _mpc->get_maxAccel().maxCoeff();
+   _solution_traj_msg.max_velocity = _mpc->get_maxVel().maxCoeff();
+
+   return;
 }

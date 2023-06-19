@@ -69,6 +69,9 @@ private:
     double                _dt;                    /** Prediction time step in seconds */
     std::string           _reference_frame_id;    /** Name of the map (inertial) frame, where the drone localizes */
 
+    int _mpcWindow;
+
+    Eigen::MatrixXd       _referenceTraj;         /** Target's predicted trajectory, over _mpcWindow. Received from the target predictor node*/
     bool                  _use_6dof_model;        /** Use 6DoF model instead of 9DoF */
     Eigen::MatrixXd       _current_drone_state;   /** Current drone state (position, velocity, acceleration) */
     Eigen::Matrix3d       _current_drone_accel;   /** Latest drone acceleration measurements. Will be added to _current_drone_state */
@@ -84,7 +87,7 @@ private:
     std::vector<geometry_msgs::msg::PoseStamped> _posehistory_vector; /** Holds the predicted positions of the MPC, for visualization */
 
     MPC *_mpc; /** MPC object */
-
+    
     void odomCallback(const nav_msgs::msg::Odometry & msg);
 
     void imuCallback(const sensor_msgs::msg::Imu & msg);
@@ -95,6 +98,9 @@ private:
   * @param msg custom_trajectory_msgs::msg::StateTrajectory
   */
   void refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg);
+
+  void extractSolution6Dof(void);
+  void extractSolution(void);
 
 };
 
