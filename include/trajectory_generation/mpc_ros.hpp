@@ -102,6 +102,9 @@ private:
   void extractSolution6Dof(void);
   void extractSolution(void);
 
+  void pubPoseHistory(void); /** @todo implement */
+  void pubMultiDofTraj(void); /** @todo implement */
+
 };
 
 #endif

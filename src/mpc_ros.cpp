@@ -248,7 +248,7 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
 //    }
 
 //    // Publish optimal trajectory
-//    _desired_traj_pub.publish(_solution_traj_msg);
+   _desired_traj_pub->publish(_solution_traj_msg);
 //    // Publish first control solution u[0] to the geometric controller
 //    pubMultiDofTraj();
 }
