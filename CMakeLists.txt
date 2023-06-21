@@ -21,28 +21,84 @@ find_package(trajectory_msgs REQUIRED)
 #
 # mpc.cpp
 #
-add_library(mpc src/mpc.cpp)
-ament_target_dependencies(mpc Eigen3)
-target_link_libraries(mpc OsqpEigen::OsqpEigen osqp::osqp)
-# this line to exports the library
-ament_export_targets(mpc HAS_LIBRARY_TARGET)
-target_include_directories(mpc
+add_library(mpc_lib src/mpc.cpp)
+target_include_directories(mpc_lib
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 
+ament_target_dependencies(mpc_lib Eigen3)
+target_link_libraries(mpc_lib OsqpEigen::OsqpEigen osqp::osqp)
+# this line to exports the library
+# ament_export_targets(mpc HAS_LIBRARY_TARGET)
+
+
 #
 # mpc_ros.cpp
 #
-add_library(mpc_ros src/mpc_ros.cpp)
-ament_target_dependencies(mpc_ros rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs)
-target_link_libraries(mpc_ros mpc)
-# this line to exports the library
-ament_export_targets(mpc_ros HAS_LIBRARY_TARGET)
-target_include_directories(mpc_ros
+add_library(moc_ros_lib src/mpc_ros.cpp)
+target_include_directories(moc_ros_lib
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(moc_ros_lib rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs)
+target_link_libraries(moc_ros_lib mpc_lib)
+# this line to exports the library
+# ament_export_targets(mpc_ros HAS_LIBRARY_TARGET)
+
+#
+# Build the ROS 2 node (mpc_node)
+#
+add_executable(mpc_node
+  src/mpc_node.cpp
+)
+target_include_directories(mpc_node
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(mpc_node
+  mpc_lib
+  moc_ros_lib
+)
+ament_target_dependencies(mpc_node
+  rclcpp
+)
+
+# Install targets
+install(
+  TARGETS mpc_lib moc_ros_lib mpc_node
+  EXPORT export_${PROJECT_NAME}
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install header files
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+# Export package information
+ament_export_targets(export_${PROJECT_NAME})
+ament_export_dependencies(rclcpp)
+
+
+# install(
+#   TARGETS mpc
+#   EXPORT mpc
+#   LIBRARY DESTINATION lib
+#   ARCHIVE DESTINATION lib
+#   RUNTIME DESTINATION bin
+#   INCLUDES DESTINATION include
+# )
+
+# install(
+#   TARGETS mpc_ros
+#   EXPORT mpc_ros
+#   LIBRARY DESTINATION lib
+#   ARCHIVE DESTINATION lib
+#   RUNTIME DESTINATION bin
+#   INCLUDES DESTINATION include
+# )
 
 
 if(BUILD_TESTING)
@@ -56,28 +112,5 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
-
-install(
-  DIRECTORY include/${PROJECT_NAME}
-  DESTINATION include
-)
-
-install(
-  TARGETS mpc
-  EXPORT mpc
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-  RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
-)
-
-install(
-  TARGETS mpc_ros
-  EXPORT mpc_ros
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-  RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
-)
 
 ament_package()

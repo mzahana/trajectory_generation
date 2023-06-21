@@ -66,6 +66,7 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr       _poseHistory_pub; /** ROS Publisher for _posehistory_vector */
     rclcpp::Publisher<trajectory_msgs::msg::MultiDOFJointTrajectory>::SharedPtr _multiDofTraj_pub; /** To publish first MPC control solution to the geometric controller */
 
+    bool                  _debug;
     double                _dt;                    /** Prediction time step in seconds */
     std::string           _reference_frame_id;    /** Name of the map (inertial) frame, where the drone localizes */
 

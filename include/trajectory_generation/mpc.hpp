@@ -56,7 +56,7 @@ void printWarn(const char* format, const Args&... args) {
 template<typename... Args>
 void printInfo(const char* format, const Args&... args) {
     printf("\033[1;32m"); // Set text color to green
-    printf("[WARN] ");
+    printf("[INFO] ");
     printf(format, args...);
     printf("\033[0m"); // Reset text color (back to default)
     printf("\n");
@@ -379,8 +379,8 @@ class MPC
 
 public:
 
-  static const unsigned int      NUM_OF_STATES = 6;             /** Number of UAV states (position, velocity, acceleration) */
-  static const unsigned int      NUM_OF_INPUTS = 3;      /** Number of control inputs of the UAV model. Jerk \in R^3 */
+  static constexpr int      NUM_OF_STATES = 6;             /** Number of UAV states (position, velocity, acceleration) */
+  static constexpr int      NUM_OF_INPUTS = 3;      /** Number of control inputs of the UAV model. Jerk \in R^3 */
 
   /**
    * @brief Constructor

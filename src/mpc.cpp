@@ -176,7 +176,7 @@ bool
 MPC::set_reference_frame_id(std::string s)
 {
    _reference_frame_id = s;
-   printInfo("_reference_frame_id = %s", _reference_frame_id);
+   printInfo("_reference_frame_id = %s", _reference_frame_id.c_str());
    return true;
 }
 

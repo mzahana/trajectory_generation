@@ -39,6 +39,10 @@ MPCROS::MPCROS(): Node("mpc_trajectory_generator")
     this->declare_parameter("dt_pred", 0.05);
     _mpc->setDt(this->get_parameter("dt_pred").get_parameter_value().get<double>());
 
+    this->declare_parameter("debug", false);
+    _debug = this->get_parameter("debug").get_parameter_value().get<bool>();
+    _mpc->setDebug(_debug);
+
     this->declare_parameter("pub_pose_path", false);
     _pub_pose_path = this->get_parameter("pub_pose_path").get_parameter_value().get<bool>();
 
@@ -90,6 +94,8 @@ MPCROS::MPCROS(): Node("mpc_trajectory_generator")
         RCLCPP_INFO(this->get_logger(),"[MPCROS] Could not initialize MPC problem");
         return;
    }
+
+   RCLCPP_INFO(this->get_logger(),"[MPCROS] will execute once reference trajectory is published...");
 
    _droneOdom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
       "px4_ros/odom", 10, std::bind(&MPCROS::odomCallback, this, _1));
