@@ -1,0 +1,48 @@
+debug: False
+# Use 6DoF (position, velocity), instead of 9DoF (position, velocity, acceleration)
+use_6dof_model: True
+# Publish pose path for visualizaion in RViz
+pub_pose_path: True
+# If True, test cases will be run, no ROS subscribers.
+# False, subscribes to reference trajecotry and this vehicle's odom
+run_test_cases: False
+# Plot only test cases
+plot: False
+# Full path to CSV where MPC data is saved
+save_mpc_data: False
+output_csv_file: "/home/arrow/shared_volume/mpc_data.csv"
+
+# Sampling time in seconds
+dt: 0.1
+
+# Number of MPC horizon steps, shoud be > 1
+mpc_window: 20
+
+# Minimum altitude above ground in UAV local frame, meter(s)
+minimum_altitude: 1.0
+
+# Localization frame id. Pose trajectory is published  with respect to it
+reference_frame_id: "interceptor_odom"
+
+# Smooth control signal, to avoid large control jumps 
+enable_control_smoothing: False
+# Weight/penality on control input differences
+smooth_input_weight: 100
+
+# 3D velocity limits in m/s. Should be >= 0
+# [x,y,z]
+max_velocity: [10.0, 10.0, 10.0]
+
+# 3D (net) acceleration limits in m/s/s. Should be >= 0
+# [x,y,z]
+max_acceleration: [5.0, 5.0, 5.0]
+
+# 3D jerk limits in m/s/s/s. Should be >= 0
+# [x,y,z]
+max_jerk: [2.0, 2.0, 2.0]
+
+# Optimization penalty on the states (Q)
+state_weight: 7000 # 7000
+
+# Optimization penalty on the control inuputs (R)
+input_weight: 500 # 0.5
