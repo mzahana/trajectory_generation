@@ -57,54 +57,70 @@ public:
     ~MPCROS();
 private:
 
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr    _droneOdom_sub; /** Drone's odometry subscriber, to get position/velocity */
-    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr      _droneImu_sub; /** Drone's IMU subscriber, to get acceleration, "mavros/imu/data" */
-    rclcpp::Subscription<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr   _referenceTraj_sub; /** Subscriber to the target predicted trajectory. Referene trajectory of the MPC */
-    // ros::Subscriber       _testCase_sub;          /** Subscriber for running testCases() function */
+   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr    _droneOdom_sub; /** Drone's odometry subscriber, to get position/velocity */
+   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr      _droneImu_sub; /** Drone's IMU subscriber, to get acceleration, "mavros/imu/data" */
+   rclcpp::Subscription<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr   _referenceTraj_sub; /** Subscriber to the target predicted trajectory. Referene trajectory of the MPC */
+   // ros::Subscriber       _testCase_sub;          /** Subscriber for running testCases() function */
 
-    rclcpp::Publisher<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr _desired_traj_pub; /** Desired trajectory sent to the trajectory planner/sampler */
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr       _poseHistory_pub; /** ROS Publisher for _posehistory_vector */
-    rclcpp::Publisher<trajectory_msgs::msg::MultiDOFJointTrajectory>::SharedPtr _multiDofTraj_pub; /** To publish first MPC control solution to the geometric controller */
+   rclcpp::Publisher<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr _desired_traj_pub; /** Desired trajectory sent to the trajectory planner/sampler */
+   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr       _poseHistory_pub; /** ROS Publisher for _posehistory_vector */
+   rclcpp::Publisher<trajectory_msgs::msg::MultiDOFJointTrajectory>::SharedPtr _multiDofTraj_pub; /** To publish first MPC control solution to the geometric controller */
 
-    bool                  _debug;
-    double                _dt;                    /** Prediction time step in seconds */
-    std::string           _reference_frame_id;    /** Name of the map (inertial) frame, where the drone localizes */
+   bool                  _debug;
+   double                _dt;                    /** Prediction time step in seconds */
+   std::string           _reference_frame_id;    /** Name of the map (inertial) frame, where the drone localizes */
 
-    int _mpcWindow;
+   int _mpcWindow;
 
-    Eigen::MatrixXd       _referenceTraj;         /** Target's predicted trajectory, over _mpcWindow. Received from the target predictor node*/
-    bool                  _use_6dof_model;        /** Use 6DoF model instead of 9DoF */
-    Eigen::MatrixXd       _current_drone_state;   /** Current drone state (position, velocity, acceleration) */
-    Eigen::Matrix3d       _current_drone_accel;   /** Latest drone acceleration measurements. Will be added to _current_drone_state */
-    bool                  _drone_state_received;  /** True if a drone's first measurment is received. Used for initialization*/
-    rclcpp::Time             _drone_state_last_t;    /** Last time stamp of _current_drone_state */
-    rclcpp::Time             _drone_state_current_t; /** Current time stamp of _current_drone_state */
-    bool                  _target_traj_received;  /** Flag to indicate whether the first target trajectory is received */
+   Eigen::MatrixXd       _referenceTraj;         /** Target's predicted trajectory, over _mpcWindow. Received from the target predictor node*/
+   bool                  _use_6dof_model;        /** Use 6DoF model instead of 9DoF */
+   Eigen::MatrixXd       _current_drone_state;   /** Current drone state (position, velocity, acceleration) */
+   Eigen::Matrix3d       _current_drone_accel;   /** Latest drone acceleration measurements. Will be added to _current_drone_state */
+   bool                  _drone_state_received;  /** True if a drone's first measurment is received. Used for initialization*/
+   rclcpp::Time             _drone_state_last_t;    /** Last time stamp of _current_drone_state */
+   rclcpp::Time             _drone_state_current_t; /** Current time stamp of _current_drone_state */
+   bool                  _target_traj_received;  /** Flag to indicate whether the first target trajectory is received */
 
-    custom_trajectory_msgs::msg::StateTrajectory _solution_traj_msg; /** ROS message for the optimal trajectory, position, velocity, acceleration, max velocity, max acceleration */
-    rclcpp::Time            _ref_traj_last_t;       /** Time stamp of the last reference trajectory */
+   bool                  _run_test_cases; /** Flag to run test cases and not using actual data. Use to execute testCases()*/
+   bool                  _save_mpc_data;         /** Whether to save MPC data to _outputCSVFile */
+   std::string           _outputCSVFile;         /** Full path to a CSV output file where MPC is stored */
 
-    bool                  _pub_pose_path;         /** Whether to publish MPC predicted path for visualization in RViz */
-    std::vector<geometry_msgs::msg::PoseStamped> _posehistory_vector; /** Holds the predicted positions of the MPC, for visualization */
+   custom_trajectory_msgs::msg::StateTrajectory _solution_traj_msg; /** ROS message for the optimal trajectory, position, velocity, acceleration, max velocity, max acceleration */
+   rclcpp::Time            _ref_traj_last_t;       /** Time stamp of the last reference trajectory */
 
-    MPC *_mpc; /** MPC object */
-    
-    void odomCallback(const nav_msgs::msg::Odometry & msg);
+   bool                  _pub_pose_path;         /** Whether to publish MPC predicted path for visualization in RViz */
+   std::vector<geometry_msgs::msg::PoseStamped> _posehistory_vector; /** Holds the predicted positions of the MPC, for visualization */
 
-    void imuCallback(const sensor_msgs::msg::Imu & msg);
+   MPC *_mpc; /** MPC object */
 
-    /**
-  * @brief Callback of the MPC reference trajectory, which is expected to be published by traj_predictor node.
-  * Updates _referenceTraj
-  * @param msg custom_trajectory_msgs::msg::StateTrajectory
-  */
-  void refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg);
+   /**
+    * @brief Runs a test case to test the entire MPC loop and the associated functions
+    */
+   void testCases(void);
 
-  void extractSolution6Dof(void);
-  void extractSolution(void);
+   /**
+    * @brief Saves MPC matrices to an CSV file
+    *
+    * @param fileName Full path to .csv file
+    */
+   void saveMPCDataToFile(void);
 
-  void pubPoseHistory(void); /** @todo implement */
-  void pubMultiDofTraj(void); /** @todo implement */
+   void odomCallback(const nav_msgs::msg::Odometry & msg);
+
+   void imuCallback(const sensor_msgs::msg::Imu & msg);
+
+   /**
+    * @brief Callback of the MPC reference trajectory, which is expected to be published by traj_predictor node.
+    * Updates _referenceTraj
+    * @param msg custom_trajectory_msgs::msg::StateTrajectory
+    */
+   void refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg);
+
+   void extractSolution6Dof(void);
+   void extractSolution(void);
+
+   void pubPoseHistory(void); /** @todo implement */
+   void pubMultiDofTraj(void); /** @todo implement */
 
 };
 

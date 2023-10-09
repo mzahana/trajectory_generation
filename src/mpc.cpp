@@ -203,6 +203,7 @@ MPC::set_current_drone_state(Eigen::MatrixXd x)
    }
    _current_drone_state.resize(NUM_OF_STATES,1);
    _current_drone_state = x;
+   _drone_state_received = true;
    return true;
 }
 
@@ -468,14 +469,14 @@ MPC::castMPCToQPHessian(void)
    _hessian = Eigen::MatrixXd::Zero(h_size, h_size);
 
    // Add _Q to _hessian
-   for (unsigned int i=0; i<_mpcWindow+1; i++)
+   for (int i=0; i<_mpcWindow+1; i++)
    {
       _hessian.block(NUM_OF_STATES*i, NUM_OF_STATES*i, NUM_OF_STATES, NUM_OF_STATES) = _Q;
    }
 
    // Add _R to _hessian
-   unsigned int idx = (_mpcWindow+1)*NUM_OF_STATES; //initial index after adding _Q
-   for (unsigned int i=0; i<_mpcWindow; i++)
+   int idx = (_mpcWindow+1)*NUM_OF_STATES; //initial index after adding _Q
+   for (int i=0; i<_mpcWindow; i++)
    {
       _hessian.block(idx+i*NUM_OF_INPUTS, idx+i*NUM_OF_INPUTS, NUM_OF_INPUTS, NUM_OF_INPUTS) = _R;
    }
@@ -510,7 +511,7 @@ MPC::castMPCToQPGradient(void)
    _gradient.setZero();
 
    // Populate the gradient vector
-   for(unsigned int i=0; i<_mpcWindow+1; i++)
+   for(int i=0; i<_mpcWindow+1; i++)
    {
       _gradient.segment(i*NUM_OF_STATES,NUM_OF_STATES) = -1.0*_Q*_referenceTraj.block(i*NUM_OF_STATES,0,NUM_OF_STATES,1);
    }
@@ -527,7 +528,7 @@ MPC::castMPCToQPGradient(void)
 void 
 MPC::updateQPGradientVector(void)
 {
-   for(unsigned int i=0; i<_mpcWindow+1; i++)
+   for(int i=0; i<_mpcWindow+1; i++)
    {
       _gradient.segment(i*NUM_OF_STATES,NUM_OF_STATES) = -1.0*_Q*_referenceTraj.block(i*NUM_OF_STATES,0,NUM_OF_STATES,1);
    }
@@ -555,7 +556,7 @@ MPC::castMPCToQPConstraintMatrix(void)
    auto N_u = NUM_OF_INPUTS * _mpcWindow;
 
    _Ac.block(0, 0, N_x, N_x) = -1.0 * Eigen::MatrixXd::Identity(N_x,N_x);
-   for (unsigned int i=1; i<_mpcWindow+1; i++)
+   for (int i=1; i<_mpcWindow+1; i++)
    {
       // upper-left block
       _Ac.block(i*NUM_OF_STATES, (i-1)*NUM_OF_STATES, NUM_OF_STATES, NUM_OF_STATES) = _A;
@@ -600,14 +601,14 @@ MPC::castMPCToQPConstraintBounds(void)
 
    // Inequality bounds for the states
    // WARNING Assuming _xMin, _xMax are already set
-   for(unsigned int i=0; i<_mpcWindow+1; i++)
+   for(int i=0; i<_mpcWindow+1; i++)
    {
       _lowerBounds.block(N_x+i*NUM_OF_STATES,0, NUM_OF_STATES,1) = _xMin;
       _upperBounds.block(N_x+i*NUM_OF_STATES,0, NUM_OF_STATES,1) = _xMax;
    }
    // Inequality bounds for the controls, u
    // WARNING Assuming _uMin, _uMax are already set
-   for(unsigned int i=0; i<_mpcWindow; i++)
+   for(int i=0; i<_mpcWindow; i++)
    {
       _lowerBounds.block(2*N_x+i*NUM_OF_INPUTS, 0, NUM_OF_INPUTS,1) = _uMin;
       _upperBounds.block(2*N_x+i*NUM_OF_INPUTS,0, NUM_OF_INPUTS,1) = _uMax;
@@ -776,28 +777,33 @@ MPC::mpcLoop(void)
 
    if(!_is_MPC_initialized)
    {
-      printWarn("MPC controller is not initialized. Skipping MPC loop.");
+      printWarn("[MPC::mpcLoop] MPC controller is not initialized. Skipping MPC loop.");
       return false;
    }
    if(!_drone_state_received)
    {
-      printWarn("[MPC controller] Drone state is not received yet. Skipping MPC loop.");
+      printWarn("[MPC::mpcLoop] Drone state is not received yet. Skipping MPC loop.");
       return false;
    }
 
    // Update gradient and bounds
    if(!updateQP())
    {
-      printError("[mpcLoop] Failed to update bounds and gradient");
+      printError("[MPC::mpcLoop]Failed to update bounds and gradient");
       return false;
    }
    
    // Solve MPC
    if(!_qpSolver.solve())
    {
-      printError("MPC solution is not found");
+      printError("[MPC::mpcLoop] MPC solution is not found");
       return false;
    }
+
+   if(_use_6dof_model)
+      extractSolution6Dof();
+   else
+      extractSolution();
 
    // if(_debug)
    // {
@@ -922,10 +928,14 @@ void
 MPC::extractSolution6Dof(void)
 {
    Eigen::VectorXd QPSolution;
+   if(_debug)
+      printInfo("[MPC::extractSolution6Dof] Getting optimal solution from _qpSolver");
    QPSolution = _qpSolver.getSolution();
 
    // State trajectory, [x(0), x(1), ... , x(N)]
    _optimal_state_traj = QPSolution.block(0, 0, NUM_OF_STATES * (_mpcWindow+1), 1);
+   if(_debug)
+      printInfo("[MPC::extractSolution6Dof] Computed _optimal_state_traj");
 
    // Control trajectory, [u(0), u(1), ... , u(N-1)]
    auto N_x = NUM_OF_STATES * (_mpcWindow+1);
@@ -1105,4 +1115,50 @@ Eigen::Vector3d
 MPC::get_maxJerk(void)
 {
    return _maxJerk;
+}
+
+Eigen::MatrixXd
+MPC::get_transition_matrix(void)
+{
+   return _A;
+}
+
+Eigen::MatrixXd
+MPC::get_input_matrix(void)
+{
+   return _B;
+}
+
+
+Eigen::VectorXd MPC::get_gradient(void)
+{
+   return  _gradient;
+}
+
+Eigen::VectorXd MPC::get_lower_bounds(void)
+{
+   return _lowerBounds;
+}
+Eigen::VectorXd MPC::get_upper_bounds(void)
+{
+   return _upperBounds;
+}
+
+Eigen::MatrixXd MPC::get_contraints_matrix(void)
+{
+   return _Ac;
+}
+
+Eigen::MatrixXd MPC::get_hessian_matrix(void)
+{
+   return _hessian;
+}
+Eigen::MatrixXd MPC::getQ(void)
+{
+   return _Q;
+}
+
+Eigen::MatrixXd MPC::getR(void)
+{
+   return _R;
 }

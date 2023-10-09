@@ -494,6 +494,16 @@ public:
   Eigen::Vector3d get_maxAccel(void);
   Eigen::Vector3d get_maxVel(void);
   Eigen::Vector3d get_maxJerk(void);
+
+  Eigen::MatrixXd get_transition_matrix(void);
+  Eigen::MatrixXd get_input_matrix(void);
+  Eigen::VectorXd get_gradient(void);
+  Eigen::VectorXd get_lower_bounds(void);
+  Eigen::VectorXd get_upper_bounds(void);
+  Eigen::MatrixXd get_contraints_matrix(void);
+  Eigen::MatrixXd get_hessian_matrix(void);
+  Eigen::MatrixXd getQ(void);
+  Eigen::MatrixXd getR(void);
 };
 
 #endif 
