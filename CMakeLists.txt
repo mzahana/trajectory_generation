@@ -65,20 +65,20 @@ ament_target_dependencies(mpc_node
 #
 # Build test_mpc_6dof.cpp
 #
-add_executable(test_mpc_6dof.cpp
+add_executable(test_mpc_6dof
   test/test_mpc_6dof.cpp
 )
-target_include_directories(test_mpc_6dof.cpp
+target_include_directories(test_mpc_6dof
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-target_link_libraries(test_mpc_6dof.cpp
+target_link_libraries(test_mpc_6dof
   mpc_6dof_lib
 )
 
 # Install targets
 install(
-  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof.cpp
+  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )
