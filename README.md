@@ -44,9 +44,9 @@ ros2 launch trajectory_generation mpc.launch.py
 ```
 
 # Test
-The core algorithm can be testedusing test cases implemented in the test directory.
+The core algorithm can be tested using test cases implemented in the test directory, no dependency on ROS.
 
 * `test_mpc_6dof`
-```bash
-ros2 run trajectory_generation test_mpc_6dof
-```
+  ```bash
+  ros2 run trajectory_generation test_mpc_6dof
+  ```
