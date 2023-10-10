@@ -45,6 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <trajectory_msgs/msg/multi_dof_joint_trajectory.hpp>
 #include "trajectory_generation/mpc_6dof.hpp"
+#include <geometry_msgs/msg/pose_array.hpp>
 
 
 using namespace std::chrono_literals;
@@ -60,7 +61,7 @@ private:
    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr    _droneOdom_sub; /** Drone's odometry subscriber, to get position/velocity */
    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr      _droneImu_sub; /** Drone's IMU subscriber, to get acceleration, "mavros/imu/data" */
    rclcpp::Subscription<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr   _referenceTraj_sub; /** Subscriber to the target predicted trajectory. Referene trajectory of the MPC */
-   // ros::Subscriber       _testCase_sub;          /** Subscriber for running testCases() function */
+   rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr   _referencePoses_sub; /** Subscriber to the target predicted poses. Referene trajectory of the MPC */
 
    rclcpp::Publisher<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr _desired_traj_pub; /** Desired trajectory sent to the trajectory planner/sampler */
    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr       _poseHistory_pub; /** ROS Publisher for _posehistory_vector */
@@ -76,12 +77,12 @@ private:
    MatX       _current_drone_state;   /** Current drone state (position, velocity, acceleration) */
    Eigen::Vector3d       _current_drone_accel;   /** Latest drone acceleration measurements. Will be added to _current_drone_state */
    bool                  _drone_state_received;  /** True if a drone's first measurment is received. Used for initialization*/
-   rclcpp::Time             _drone_state_last_t;    /** Last time stamp of _current_drone_state */
-   rclcpp::Time             _drone_state_current_t; /** Current time stamp of _current_drone_state */
+   builtin_interfaces::msg::Time             _drone_state_last_t;    /** Last time stamp of _current_drone_state */
+   builtin_interfaces::msg::Time             _drone_state_current_t; /** Current time stamp of _current_drone_state */
    bool                  _target_traj_received;  /** Flag to indicate whether the first target trajectory is received */
 
    custom_trajectory_msgs::msg::StateTrajectory _solution_traj_msg; /** ROS message for the optimal trajectory, position, velocity, acceleration, max velocity, max acceleration */
-   rclcpp::Time            _ref_traj_last_t;       /** Time stamp of the last reference trajectory */
+   builtin_interfaces::msg::Time            _ref_traj_last_t;       /** Time stamp of the last reference trajectory */
 
    bool                  _pub_pose_path;         /** Whether to publish MPC predicted path for visualization in RViz */
    std::vector<geometry_msgs::msg::PoseStamped> _posehistory_vector; /** Holds the predicted positions of the MPC, for visualization */
@@ -89,7 +90,7 @@ private:
    MPC *_mpc; /** MPC object */
 
    void odomCallback(const nav_msgs::msg::Odometry & msg);
-
+   void refPosesCallback(const geometry_msgs::msg::PoseArray & msg);
    void imuCallback(const sensor_msgs::msg::Imu & msg);
 
    /**

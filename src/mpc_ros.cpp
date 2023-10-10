@@ -99,6 +99,9 @@ MPCROS::MPCROS(): Node("mpc_trajectory_generator")
    _referenceTraj_sub = this->create_subscription<custom_trajectory_msgs::msg::StateTrajectory>(
       "traj_predictor/in/ref_traj", 10, std::bind(&MPCROS::refTrajCallback, this, _1));
 
+   _referencePoses_sub = this->create_subscription<geometry_msgs::msg::PoseArray>(
+      "traj_predictor/in/ref_traj_poses", 10, std::bind(&MPCROS::refPosesCallback, this, _1));
+
 
    _poseHistory_pub = this->create_publisher<nav_msgs::msg::Path>("mpc_tracker/out/path", 10);
    _desired_traj_pub = this->create_publisher<custom_trajectory_msgs::msg::StateTrajectory>("mpc_tracker/out/trajectory", 10);
@@ -142,9 +145,87 @@ MPCROS::imuCallback(const sensor_msgs::msg::Imu & msg)
 }
 
 void
+MPCROS::refPosesCallback(const geometry_msgs::msg::PoseArray & msg)
+{
+   // WARNING The rate of MPC is affected by
+   // the rate of Odom (drone state) (default 30Hz from mavros/local_position/odom),
+   // and _referenceTraj
+   // and the size of MPC problem
+   // The MPC rate will be close to the max(odom, _referenceTraj, MPC execution time)
+
+   if(!_drone_state_received)
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPosesCallback] Drone state is not received. Check Odom. Returning");
+      return;
+   }
+   // Make sure we have a new reference trajectory
+   double d2 = msg.header.stamp.sec + static_cast<double>(msg.header.stamp.nanosec) * 1e-9;
+   double d1 = _ref_traj_last_t.sec + static_cast<double>(_ref_traj_last_t.nanosec) * 1e-9;
+   auto dt = d2 - d1;
+   if (dt <= 0.0)
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPosesCallback] Received an old reference trajectory");
+      return;
+   }
+   _ref_traj_last_t = msg.header.stamp;
+
+   // Make sure we have a new drone state measurement
+   d2 = _drone_state_current_t.sec + static_cast<double>(_drone_state_current_t.nanosec) * 1e-9;
+   d1 = _drone_state_last_t.sec + static_cast<double>(_drone_state_last_t.nanosec) * 1e-9;
+   dt = d2 - d1;
+   if (dt <= 0.0)
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Received an old drone state. Return");
+      return;
+   }
+   _drone_state_last_t = _drone_state_current_t;
+   if(!_mpc->setCurrentState(_current_drone_state)) return;
+
+   // Make sure we have enough state predictions of the target (reference trajectory)
+   if (msg.poses.size() < (long unsigned int)(_mpcWindow+1) )
+   {
+      RCLCPP_ERROR(this->get_logger(), "[MPCROS::refTrajCallback] Not enough reference states to consume. Size of reference states %d < MPC steps+1 %d", (int)msg.poses.size(), _mpcWindow+1);
+      return;
+   }
+
+//    // Update _referenceTraj
+   _referenceTraj.setZero();
+   for (int i=0; i<_mpcWindow+1; i++)
+   {
+      _referenceTraj(i*NUM_OF_STATES+0,0) = msg.poses[i].position.x;
+      _referenceTraj(i*NUM_OF_STATES+1,0) = msg.poses[i].position.y;
+      _referenceTraj(i*NUM_OF_STATES+2,0) = msg.poses[i].position.z;
+      _referenceTraj(i*NUM_OF_STATES+3,0) = 0.0;
+      _referenceTraj(i*NUM_OF_STATES+4,0) = 0.0;
+      _referenceTraj(i*NUM_OF_STATES+5,0) = 0.0;
+   }
+   if(!_mpc->setReferenceTraj(_referenceTraj)) return;
+   
+
+//    /* Solve MPC problem ! */
+   if(!_mpc->mpcLoop())
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Error in mpcLooop()");
+      return;
+   }
+
+   // Extract solutions, updates _optimal_state_traj, _optimal_control_traj, _mpc_ctrl_sol
+   extractSolution();
+
+   // Publish desired trajectory, visualization, ... etc
+   if(_pub_pose_path)
+   {
+      pubPoseHistory();
+   }
+
+   // Publish optimal trajectory
+   _desired_traj_pub->publish(_solution_traj_msg);
+}
+
+void
 MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg)
 {
-    // WARNING The rate of MPC is affected by
+   // WARNING The rate of MPC is affected by
    // the rate of Odom (drone state) (default 30Hz from mavros/local_position/odom),
    // and _referenceTraj
    // and the size of MPC problem
@@ -156,7 +237,9 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
       return;
    }
    // Make sure we have a new reference trajectory
-   auto dt = rclcpp::Time(msg.header.stamp).seconds() - rclcpp::Time(_ref_traj_last_t).seconds();
+   double d2 = msg.header.stamp.sec + static_cast<double>(msg.header.stamp.nanosec) * 1e-9;
+   double d1 = _ref_traj_last_t.sec + static_cast<double>(_ref_traj_last_t.nanosec) * 1e-9;
+   auto dt = d2 - d1;
    if (dt <= 0.0)
    {
       RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Received an old reference trajectory");
@@ -165,8 +248,9 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
    _ref_traj_last_t = msg.header.stamp;
 
    // Make sure we have a new drone state measurement
-   dt = rclcpp::Time(_drone_state_current_t).seconds() - rclcpp::Time(_drone_state_last_t).seconds();
-//    dt = (_drone_state_current_t - _drone_state_last_t).toSec();
+   d2 = _drone_state_current_t.sec + static_cast<double>(_drone_state_current_t.nanosec) * 1e-9;
+   d1 = _drone_state_last_t.sec + static_cast<double>(_drone_state_last_t.nanosec) * 1e-9;
+   dt = d2 - d1;
    if (dt <= 0.0)
    {
       RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Received an old drone state. Return");
@@ -187,13 +271,11 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
    for (int i=0; i<_mpcWindow+1; i++)
    {
       _referenceTraj(i*NUM_OF_STATES+0,0) = msg.states[i].position.x;
-      _referenceTraj(i*NUM_OF_STATES+1,0) = msg.states[i].velocity.x;
-
-      _referenceTraj(i*NUM_OF_STATES+2,0) = msg.states[i].position.y;
-      _referenceTraj(i*NUM_OF_STATES+3,0) = msg.states[i].velocity.y;
-
-      _referenceTraj(i*NUM_OF_STATES+4,0) = msg.states[i].position.z;
-      _referenceTraj(i*NUM_OF_STATES+5,0) = msg.states[i].velocity.z;
+      _referenceTraj(i*NUM_OF_STATES+1,0) = msg.states[i].position.y;
+      _referenceTraj(i*NUM_OF_STATES+2,0) = msg.states[i].position.z;
+      _referenceTraj(i*NUM_OF_STATES+3,0) = msg.states[i].velocity.x;
+      _referenceTraj(i*NUM_OF_STATES+4,0) = msg.states[i].position.y;
+      _referenceTraj(i*NUM_OF_STATES+5,0) = msg.states[i].position.z;
    }
    if(!_mpc->setReferenceTraj(_referenceTraj)) return;
    
@@ -271,161 +353,6 @@ MPCROS::extractSolution(void)
    return;
 
 }
-
-
-// void MPCROS::testCases(void)
-// {
-//     if (_debug)
-//    {
-//       RCLCPP_INFO(this->get_logger(), "[MPCROS::testCase] Starting test Case. Target is hovering at 1.0m altitude. Follower is at rest on the ground.");
-//    }
-//    if(_debug)
-//    {
-//       RCLCPP_INFO(this->get_logger(),"[MPCROS::testCase] Setting the reference trajectory");
-//    }
-   
-//    // For timing this function
-//    // Get the start time.
-//     auto start = std::chrono::high_resolution_clock::now();
-
-//    // Create a _referenceTraj of a target hovering at 1.0m altitude from ground
-//    _referenceTraj.resize(_mpc->get_num_of_states()*(_mpcWindow+1),1);
-//    _referenceTraj.setZero();
-//    for (int i=0; i<_mpcWindow+1; i++)
-//    {
-//       if (_use_6dof_model)
-//       {
-//          // states order: [px, vx, py, vy, pz, vz]
-//          _referenceTraj(i*_mpc->get_num_of_states()+4,0) = 1.0; // z coordinate at all times
-//          _referenceTraj(i*_mpc->get_num_of_states()+0,0) = 0.1; // x coordinate at all time
-//       }
-//       else
-//       {
-//          // states order: [px, vx, ax, py, vy, ay, pz, vz, az]
-//          _referenceTraj(i*_mpc->get_num_of_states()+6,0) = 1.0; // z coordinate at all times
-//          _referenceTraj(i*_mpc->get_num_of_states()+0,0) = 0.1; // x coordinate at all times  
-//       }
-//    }
-
-//    if(_debug)
-//    {
-//       RCLCPP_INFO(this->get_logger(),"[MPCROS::testCase] Setting the drone state");
-//    }
-//    // Current drone state
-//    _current_drone_state.setZero();
-//    if (_use_6dof_model)
-//    {
-//       // state order: [px, vx, py, vy, pz, vz]
-//       _current_drone_state(0,0)=0.1; // px
-//       _current_drone_state(2,0)=-0.5; // py
-//       _current_drone_state(4,0)=0.1; // pz
-//    }
-//    else
-//    {
-//       // state order: [px, vx, ax, py, vy ,ay, pz, vz, az]
-//       _current_drone_state(0,0)=0.1; // px
-//       _current_drone_state(3,0)=-0.5; // py
-//       _current_drone_state(6,0)=0.1; // pz
-//    }
-
-//    if(!_mpc->set_current_drone_state(_current_drone_state))
-//    {
-//       RCLCPP_ERROR(this->get_logger(), "[MPCROS::testCase] Could not set current drone state. Return");
-//       return;
-//    }
-
-
-//    if(_debug)
-//    {
-//       RCLCPP_INFO(this->get_logger(),"[MPCROS::testCase] Updating MPC reference trajectory");
-//    }
-   
-//    // Update QP
-//    if(!_mpc->set_referenceTraj(_referenceTraj))
-//    {
-//       RCLCPP_ERROR(this->get_logger(), "[MPCROS::testCase] Failed to set reference trajectory. Return");
-//       return;
-//    }
-
-//    if(!_mpc->updateMPC())
-//    {
-//       RCLCPP_ERROR(this->get_logger(), "Could not updateMPC. Return");
-//       return;
-//    }
-
-   
-//    // Solve MPC
-//    if(_debug)
-//    {
-//       RCLCPP_INFO(this->get_logger(),"[MPCROS::testCase] Solving MPC problem");
-//    }
-//    if(!_mpc->mpcLoop())
-//    {
-//       RCLCPP_ERROR(this->get_logger(),"[MPCROS::testCase] MPC solution is not found");
-//       return;
-//    }
-
-//    if(_debug)
-//    {
-//      RCLCPP_INFO(this->get_logger(),"[MPCROS::testCase] Extracting solution");
-//    }
-//    // Extract solutions, updates _optimal_state_traj, _optimal_control_traj, _mpc_ctrl_sol
-//    if (_use_6dof_model)
-//       extractSolution6Dof();
-//    else
-//       extractSolution();
-
-//    _desired_traj_pub->publish(_solution_traj_msg);
-
-
-//    // if(_debug)
-//    // {
-//    //    std::cout << "[MPCTracker::testCase] Optimal control: " << std::endl << _mpc_ctrl_sol << std::endl;
-//    //    std::cout << "[MPCTracker::testCase] Optimal state trajectory: " << std::endl << _optimal_state_traj << std::endl;
-//    //    std::cout << "[MPCTracker::testCase] Optimal control trajectory: " << std::endl << _optimal_control_traj << std::endl;
-//    // }
-
-//    // Apply the optimal control inputs to the initial condition
-//    RCLCPP_INFO(this->get_logger(), "[MPCROS::testCase] Apply the optimal control inputs to the initial condition");
-//    auto x0 = _current_drone_state;
-//    for (int i=0; i < _mpcWindow; i++)
-//    {
-//       x0 = _mpc->get_transition_matrix()*x0 + _mpc->get_input_matrix()*_mpc->get_optimal_control_traj().segment(i*_mpc->get_num_of_inputs(), _mpc->get_num_of_inputs());
-//    }
-
-//    // Publish desired trajectory, visualization, ... etc
-//    if(_pub_pose_path)
-//    {
-//       if(_debug)
-//       {
-//          RCLCPP_INFO(this->get_logger(),"[MPCROS::testCase] Publishing predicted position path");
-//       }
-//       pubPoseHistory();
-//    }
-
-//    if (_debug)
-//    {
-//       RCLCPP_INFO(this->get_logger(),"[MPCROS::testCase] Test case is Done!");
-//    }
-
-//    // Get the end time.
-//    auto end = std::chrono::high_resolution_clock::now();
-//    // Compute the difference between the end time and the start time.
-//    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-//    double time_in_seconds = duration.count() / 1000.0;
-//    RCLCPP_INFO(this->get_logger()," Test case took %f seconds.", time_in_seconds);
-
-//    // Compare the simulated satate to the one computed by the optimization
-//    auto x_N_opt = _mpc->get_optimal_state_traj().segment(_mpc->get_num_of_states()*_mpcWindow, _mpc->get_num_of_states());
-//    std::cout << "[MPCROS::testCase] Simulated state at time step t= " << _mpcWindow << "\n" << x0 << "\n";
-//    std::cout << "[MPCROS::testCase] Optimal state at time step t= " << _mpcWindow << "\n" << x_N_opt << "\n";
-//    std::cout << "[MPCROS::testCase] Error between simulated and optimal final state at t= " << _mpcWindow << "\n" << (x_N_opt-x0).norm() << "\n";
-
-
-//    // if(_plot)
-//    //    plotSolutions();
-//    return;
-// }
 
 
 void MPCROS::pubPoseHistory(void)
