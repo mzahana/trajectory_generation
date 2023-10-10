@@ -5,6 +5,7 @@ mpc_node:
     pub_pose_path: True
 
     # Sampling time in seconds
+    # IMPORTANT!!! Make sure this is the same as the reference trajectory sampling time
     dt_pred: 0.1
 
     # Number of MPC horizon steps, shoud be > 1
@@ -26,11 +27,12 @@ mpc_node:
     # [x,y,z]
     max_velocity: [10.0, 10.0, 10.0]
 
-    # 3D (net) acceleration limits in m/s/s. Should be >= 0
+    # 3D Net acceleration limits in m/s/s. Should be >= 0
     # [x,y,z]
     max_acceleration: [5.0, 5.0, 5.0]
 
     # 3D jerk limits in m/s/s/s. Should be >= 0
+    # Not used in 6dof implementation; can be used in 9dof when input is jerk
     # [x,y,z]
     max_jerk: [2.0, 2.0, 2.0]
 
