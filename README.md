@@ -42,3 +42,11 @@ Core libraries are implementations of MPC with specific model with no dependence
 ```bash
 ros2 launch trajectory_generation mpc.launch.py 
 ```
+
+# Test
+The core algorithm can be testedusing test cases implemented in the test directory.
+
+* `test_mpc_6dof`
+```bash
+ros2 run trajectory_generation test_mpc_6dof
+```
