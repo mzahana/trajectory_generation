@@ -214,10 +214,10 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
       pubPoseHistory();
    }
 
-//    // Publish optimal trajectory
+   // Publish optimal trajectory
    _desired_traj_pub->publish(_solution_traj_msg);
-//    // Publish first control solution u[0] to the geometric controller
-//    pubMultiDofTraj();
+   // Publish first control solution u[0] to a lower level controller
+   // pubMultiDofTraj();
 }
 
 void
@@ -240,8 +240,8 @@ MPCROS::extractSolution(void)
       pose_msg.header.frame_id=_reference_frame_id;
       pose_msg.header.stamp = rclcpp::Time(t);
       pose_msg.pose.position.x = optimal_state_traj(i*nx+0);
-      pose_msg.pose.position.y = optimal_state_traj(i*nx+2);
-      pose_msg.pose.position.z = optimal_state_traj(i*nx+4);
+      pose_msg.pose.position.y = optimal_state_traj(i*nx+1);
+      pose_msg.pose.position.z = optimal_state_traj(i*nx+2);
       pose_msg.pose.orientation.w=1.0; // Keep 0 rotation, for now
       // _posehistory_vector.insert(_posehistory_vector.begin(), pose_msg);
       _posehistory_vector[i] = pose_msg;
@@ -251,10 +251,10 @@ MPCROS::extractSolution(void)
          // Fill ROS msg
          _solution_traj_msg.states[i].time_from_start = (i+1)*_dt;
          _solution_traj_msg.states[i].position.x = optimal_state_traj( (i+1)*nx+0 );
-         _solution_traj_msg.states[i].position.y = optimal_state_traj( (i+1)*nx+2 );
-         _solution_traj_msg.states[i].position.z = optimal_state_traj( (i+1)*nx+4 );
-         _solution_traj_msg.states[i].velocity.x = optimal_state_traj( (i+1)*nx+1 );
-         _solution_traj_msg.states[i].velocity.y = optimal_state_traj( (i+1)*nx+3 );
+         _solution_traj_msg.states[i].position.y = optimal_state_traj( (i+1)*nx+1 );
+         _solution_traj_msg.states[i].position.z = optimal_state_traj( (i+1)*nx+2 );
+         _solution_traj_msg.states[i].velocity.x = optimal_state_traj( (i+1)*nx+3 );
+         _solution_traj_msg.states[i].velocity.y = optimal_state_traj( (i+1)*nx+4 );
          _solution_traj_msg.states[i].velocity.z = optimal_state_traj( (i+1)*nx+5 );
          _solution_traj_msg.states[i].acceleration.x = optimal_control_traj(i*nu+0);
          _solution_traj_msg.states[i].acceleration.y = optimal_control_traj(i*nu+1);
