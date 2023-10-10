@@ -32,6 +32,18 @@ target_link_libraries(mpc_lib OsqpEigen::OsqpEigen osqp::osqp)
 # this line to exports the library
 # ament_export_targets(mpc HAS_LIBRARY_TARGET)
 
+#
+# mpc_6dof.cpp
+#
+add_library(mpc_6dof_lib src/mpc_6dof.cpp)
+target_include_directories(mpc_6dof_lib
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+ament_target_dependencies(mpc_6dof_lib Eigen3)
+target_link_libraries(mpc_6dof_lib OsqpEigen::OsqpEigen osqp::osqp)
+
 
 #
 # mpc_ros.cpp
