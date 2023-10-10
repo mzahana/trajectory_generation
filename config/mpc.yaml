@@ -1,18 +1,8 @@
 mpc_node:
   ros__parameters:
-    debug: True
-    # Use 6DoF (position, velocity), instead of 9DoF (position, velocity, acceleration)
-    use_6dof_model: True
+    debug: False
     # Publish pose path for visualizaion in RViz
     pub_pose_path: True
-    # If True, test cases will be run, no ROS subscribers.
-    # False, subscribes to reference trajecotry and this vehicle's odom
-    run_test_cases: True
-    # Plot only test cases
-    plot: False
-    # Full path to CSV where MPC data is saved
-    save_mpc_data: True
-    output_csv_file: "/home/user/shared_volume/mpc_data.csv"
 
     # Sampling time in seconds
     dt_pred: 0.1

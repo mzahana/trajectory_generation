@@ -19,20 +19,6 @@ find_package(sensor_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
 #
-# mpc.cpp
-#
-add_library(mpc_lib src/mpc.cpp)
-target_include_directories(mpc_lib
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>)
-
-ament_target_dependencies(mpc_lib Eigen3)
-target_link_libraries(mpc_lib OsqpEigen::OsqpEigen osqp::osqp)
-# this line to exports the library
-# ament_export_targets(mpc HAS_LIBRARY_TARGET)
-
-#
 # mpc_6dof.cpp
 #
 add_library(mpc_6dof_lib src/mpc_6dof.cpp)
@@ -48,13 +34,13 @@ target_link_libraries(mpc_6dof_lib OsqpEigen::OsqpEigen osqp::osqp)
 #
 # mpc_ros.cpp
 #
-add_library(moc_ros_lib src/mpc_ros.cpp)
-target_include_directories(moc_ros_lib
+add_library(mpc_ros_lib src/mpc_ros.cpp)
+target_include_directories(mpc_ros_lib
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(moc_ros_lib rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs)
-target_link_libraries(moc_ros_lib mpc_lib)
+ament_target_dependencies(mpc_ros_lib rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs)
+target_link_libraries(mpc_ros_lib mpc_6dof_lib)
 # this line to exports the library
 # ament_export_targets(mpc_ros HAS_LIBRARY_TARGET)
 
@@ -69,8 +55,8 @@ target_include_directories(mpc_node
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_link_libraries(mpc_node
-  mpc_lib
-  moc_ros_lib
+  mpc_6dof_lib
+  mpc_ros_lib
 )
 ament_target_dependencies(mpc_node
   rclcpp
@@ -78,7 +64,7 @@ ament_target_dependencies(mpc_node
 
 # Install targets
 install(
-  TARGETS mpc_lib moc_ros_lib mpc_node
+  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )

@@ -196,6 +196,8 @@ MPC::setCurrentAccel(const Eigen::Vector3d &a)
       return false;
    }
    _current_accel = a;
+
+   return true;
 }
 
 bool

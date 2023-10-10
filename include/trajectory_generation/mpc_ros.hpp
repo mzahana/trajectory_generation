@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <trajectory_msgs/msg/multi_dof_joint_trajectory.hpp>
-#include "trajectory_generation/mpc.hpp"
+#include "trajectory_generation/mpc_6dof.hpp"
 
 
 using namespace std::chrono_literals;
@@ -73,17 +73,12 @@ private:
    int _mpcWindow;
 
    Eigen::MatrixXd       _referenceTraj;         /** Target's predicted trajectory, over _mpcWindow. Received from the target predictor node*/
-   bool                  _use_6dof_model;        /** Use 6DoF model instead of 9DoF */
-   Eigen::MatrixXd       _current_drone_state;   /** Current drone state (position, velocity, acceleration) */
-   Eigen::Matrix3d       _current_drone_accel;   /** Latest drone acceleration measurements. Will be added to _current_drone_state */
+   MatX       _current_drone_state;   /** Current drone state (position, velocity, acceleration) */
+   Eigen::Vector3d       _current_drone_accel;   /** Latest drone acceleration measurements. Will be added to _current_drone_state */
    bool                  _drone_state_received;  /** True if a drone's first measurment is received. Used for initialization*/
    rclcpp::Time             _drone_state_last_t;    /** Last time stamp of _current_drone_state */
    rclcpp::Time             _drone_state_current_t; /** Current time stamp of _current_drone_state */
    bool                  _target_traj_received;  /** Flag to indicate whether the first target trajectory is received */
-
-   bool                  _run_test_cases; /** Flag to run test cases and not using actual data. Use to execute testCases()*/
-   bool                  _save_mpc_data;         /** Whether to save MPC data to _outputCSVFile */
-   std::string           _outputCSVFile;         /** Full path to a CSV output file where MPC is stored */
 
    custom_trajectory_msgs::msg::StateTrajectory _solution_traj_msg; /** ROS message for the optimal trajectory, position, velocity, acceleration, max velocity, max acceleration */
    rclcpp::Time            _ref_traj_last_t;       /** Time stamp of the last reference trajectory */
@@ -92,18 +87,6 @@ private:
    std::vector<geometry_msgs::msg::PoseStamped> _posehistory_vector; /** Holds the predicted positions of the MPC, for visualization */
 
    MPC *_mpc; /** MPC object */
-
-   /**
-    * @brief Runs a test case to test the entire MPC loop and the associated functions
-    */
-   void testCases(void);
-
-   /**
-    * @brief Saves MPC matrices to an CSV file
-    *
-    * @param fileName Full path to .csv file
-    */
-   void saveMPCDataToFile(void);
 
    void odomCallback(const nav_msgs::msg::Odometry & msg);
 
@@ -116,7 +99,6 @@ private:
     */
    void refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg);
 
-   void extractSolution6Dof(void);
    void extractSolution(void);
 
    void pubPoseHistory(void); /** @todo implement */
