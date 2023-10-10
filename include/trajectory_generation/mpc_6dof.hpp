@@ -276,11 +276,6 @@ private:
   */
   void printProblemInfo(void);
 
-  /**
-  * @brief Saves MPC matrices to an CSV file
-  */
-  void saveMPCDataToFile(void);
-
 public:
 
   /**
@@ -372,6 +367,11 @@ public:
    * @param path std::string absolutep ath to of the output file
   */
   void setOutputFilePath(std::string path);
+
+  /**
+  * @brief Saves MPC matrices to an CSV file
+  */
+  void saveMPCDataToFile(void);
 
   /**
    * @brief Sets _referenceTraj
