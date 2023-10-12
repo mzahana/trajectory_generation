@@ -9,14 +9,14 @@ mpc_node:
     dt_pred: 0.1
 
     # Number of MPC horizon steps, shoud be > 1
-    mpc_window: 20
+    mpc_window: 5
 
     # Minimum altitude above ground in UAV local frame, meter(s)
     # This is just for safety, to avoid crashing into ground
     minimum_altitude: -1.0
 
     # Localization frame id. Pose trajectory is published  with respect to it
-    reference_frame_id: "interceptor_odom"
+    reference_frame_id: "interceptor/odom"
 
     # Smooth control signal, to avoid large control jumps 
     enable_control_smoothing: False
