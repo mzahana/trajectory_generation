@@ -62,6 +62,7 @@ private:
    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr      _droneImu_sub; /** Drone's IMU subscriber, to get acceleration, "mavros/imu/data" */
    rclcpp::Subscription<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr   _referenceTraj_sub; /** Subscriber to the target predicted trajectory. Referene trajectory of the MPC */
    rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr   _referencePoses_sub; /** Subscriber to the target predicted poses. Referene trajectory of the MPC */
+   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr _referencePath_sub; /** Subscriber to the target predicted Path. Referene trajectory of the MPC */
 
    rclcpp::Publisher<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr _desired_traj_pub; /** Desired trajectory sent to the trajectory planner/sampler */
    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr       _poseHistory_pub; /** ROS Publisher for _posehistory_vector */
@@ -89,8 +90,25 @@ private:
 
    MPC *_mpc; /** MPC object */
 
+   /**
+    * @brief Odometry callback
+    * @param msg nav_msgs::msg::Odometry
+   */
    void odomCallback(const nav_msgs::msg::Odometry & msg);
+   /**
+    * @brief Callback for the reference trajectory as PoseArray
+    * @param msg geometry_msgs::msg::PoseArray
+   */
    void refPosesCallback(const geometry_msgs::msg::PoseArray & msg);
+   /**
+    * @brief Callback for the reference trajectory as Path
+    * @param msg geometry_msgs::msg::PoseArray
+   */
+   void refPathCallback(const nav_msgs::msg::Path & msg);
+   /**
+    * @brief IMU callback to get current velocity and acceleration
+    * @param msg sensor_msgs::msg::Imu
+   */
    void imuCallback(const sensor_msgs::msg::Imu & msg);
 
    /**

@@ -86,15 +86,17 @@ MPCROS::MPCROS(): Node("mpc_trajectory_generator")
         RCLCPP_INFO(this->get_logger(),"[MPCROS] Could not initialize MPC problem");
         return;
    }
+   _referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1),1);
 
    RCLCPP_INFO(this->get_logger(),"[MPCROS] will execute once reference trajectory is published...");
 
 
+   RCLCPP_INFO(this->get_logger(), "[MPCROS] Creating subscribers and publishers");
    _droneOdom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
       "px4_ros/in/odom", rclcpp::SensorDataQoS(), std::bind(&MPCROS::odomCallback, this, _1));
 
    _droneImu_sub = this->create_subscription<sensor_msgs::msg::Imu>(
-      "px4_ros/in/imu", rclcpp::SensorDataQoS(), std::bind(&MPCROS::imuCallback, this, _1));    
+      "in/imu", rclcpp::SensorDataQoS(), std::bind(&MPCROS::imuCallback, this, _1));    
 
    _referenceTraj_sub = this->create_subscription<custom_trajectory_msgs::msg::StateTrajectory>(
       "traj_predictor/in/ref_traj", 10, std::bind(&MPCROS::refTrajCallback, this, _1));
@@ -102,10 +104,15 @@ MPCROS::MPCROS(): Node("mpc_trajectory_generator")
    _referencePoses_sub = this->create_subscription<geometry_msgs::msg::PoseArray>(
       "traj_predictor/in/ref_traj_poses", 10, std::bind(&MPCROS::refPosesCallback, this, _1));
 
+   _referencePath_sub = this->create_subscription<nav_msgs::msg::Path>(
+      "traj_predictor/in/ref_traj_path",  rclcpp::SensorDataQoS(), std::bind(&MPCROS::refPathCallback, this, _1));
+
 
    _poseHistory_pub = this->create_publisher<nav_msgs::msg::Path>("mpc_tracker/out/path", 10);
    _desired_traj_pub = this->create_publisher<custom_trajectory_msgs::msg::StateTrajectory>("mpc_tracker/out/trajectory", 10);
    _multiDofTraj_pub = this->create_publisher<trajectory_msgs::msg::MultiDOFJointTrajectory>("mpc_tracker/command/trajectory", 10);
+
+   RCLCPP_INFO(this->get_logger(), "[MPCROS] Done with creating subscribers and publishers");
     
 }
 
@@ -117,10 +124,12 @@ MPCROS::~MPCROS()
 void
 MPCROS::odomCallback(const nav_msgs::msg::Odometry & msg)
 {
+   // RCLCPP_INFO(this->get_logger(), "[MPCROS::odomCallback] Got odom msg");
     if(!_drone_state_received)
       _drone_state_received = true;
 
    _drone_state_current_t = msg.header.stamp;
+   _reference_frame_id = msg.header.frame_id;
    _current_drone_state.setZero();
    // TODO Sync time stamps of _current_drone_accel with pose, before adding it to _current_drone_state
    //  state order: [px, py, pz, vx, vy, vz]
@@ -135,6 +144,7 @@ MPCROS::odomCallback(const nav_msgs::msg::Odometry & msg)
 void
 MPCROS::imuCallback(const sensor_msgs::msg::Imu & msg)
 {
+   // RCLCPP_INFO(this->get_logger(), "[MPCROS::imuCallback] Got IMU msg");
     // WARNING The following is WRONG!!!!
    // TODO: Need to transform IMU from body frame to local frame, and remove gravity magnitude from z axis
    // Get acceleration values
@@ -142,6 +152,87 @@ MPCROS::imuCallback(const sensor_msgs::msg::Imu & msg)
    _current_drone_accel << msg.linear_acceleration.x,
                            msg.linear_acceleration.y,
                            msg.linear_acceleration.z;
+}
+
+void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
+{
+   RCLCPP_INFO(this->get_logger(),"Executing refPathCallback");
+   // WARNING The rate of MPC is affected by
+   // the rate of Odom (drone state) (default 30Hz from mavros/local_position/odom),
+   // and _referenceTraj
+   // and the size of MPC problem
+   // The MPC rate will be close to the max(odom, _referenceTraj, MPC execution time)
+
+   if(!_drone_state_received)
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPosesCallback] Drone state is not received. Check Odom. Returning");
+      return;
+   }
+   // Make sure we have a new reference trajectory
+   double d2 = msg.header.stamp.sec + static_cast<double>(msg.header.stamp.nanosec) * 1e-9;
+   double d1 = _ref_traj_last_t.sec + static_cast<double>(_ref_traj_last_t.nanosec) * 1e-9;
+   auto dt = d2 - d1;
+   if (dt <= 0.0)
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPosesCallback] Received an old reference trajectory");
+      return;
+   }
+   _ref_traj_last_t = msg.header.stamp;
+
+   // Make sure we have a new drone state measurement
+   d2 = _drone_state_current_t.sec + static_cast<double>(_drone_state_current_t.nanosec) * 1e-9;
+   d1 = _drone_state_last_t.sec + static_cast<double>(_drone_state_last_t.nanosec) * 1e-9;
+   dt = d2 - d1;
+   if (dt <= 0.0)
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Received an old drone state. Return");
+      return;
+   }
+   _drone_state_last_t = _drone_state_current_t;
+   if(!_mpc->setCurrentState(_current_drone_state)) return;
+
+   // Make sure we have enough state predictions of the target (reference trajectory)
+   if (msg.poses.size() < (long unsigned int)(_mpcWindow+1) )
+   {
+      RCLCPP_ERROR(this->get_logger(), "[MPCROS::refTrajCallback] Not enough reference states to consume. Size of reference states %d < MPC steps+1 %d", (int)msg.poses.size(), _mpcWindow+1);
+      return;
+   }
+
+   // RCLCPP_INFO(this->get_logger(), "Setting _referenceTraj");
+   // Update _referenceTraj
+   _referenceTraj.setZero();
+   for (int i=0; i<_mpcWindow+1; i++)
+   {
+      _referenceTraj(i*NUM_OF_STATES+0,0) = msg.poses[i].pose.position.x;
+      _referenceTraj(i*NUM_OF_STATES+1,0) = msg.poses[i].pose.position.y;
+      _referenceTraj(i*NUM_OF_STATES+2,0) = msg.poses[i].pose.position.z;
+      _referenceTraj(i*NUM_OF_STATES+3,0) = 0.0;
+      _referenceTraj(i*NUM_OF_STATES+4,0) = 0.0;
+      _referenceTraj(i*NUM_OF_STATES+5,0) = 0.0;
+   }
+   if(!_mpc->setReferenceTraj(_referenceTraj)) return;
+   // RCLCPP_INFO(this->get_logger(), "Done Setting _referenceTraj");
+   
+
+//    /* Solve MPC problem ! */
+   if(!_mpc->mpcLoop())
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Error in mpcLooop()");
+      return;
+   }
+
+   // Extract solutions, updates _optimal_state_traj, _optimal_control_traj, _mpc_ctrl_sol
+   extractSolution();
+
+   // Publish desired trajectory, visualization, ... etc
+   if(_pub_pose_path)
+   {
+      pubPoseHistory();
+   }
+
+   // Publish optimal trajectory
+   _desired_traj_pub->publish(_solution_traj_msg);
+
 }
 
 void
