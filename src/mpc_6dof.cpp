@@ -570,7 +570,7 @@ MPC::initMPCProblem(void)
       return false;
    }
 
-  printProblemInfo();
+//   printProblemInfo();
   _is_MPC_initialized = true;
 
    // double total_elapsed = (ros::WallTime::now() - startTime).toSec();
