@@ -156,7 +156,7 @@ MPCROS::imuCallback(const sensor_msgs::msg::Imu & msg)
 
 void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
 {
-   RCLCPP_INFO(this->get_logger(),"Executing refPathCallback");
+   // RCLCPP_INFO(this->get_logger(),"Executing refPathCallback");
    // WARNING The rate of MPC is affected by
    // the rate of Odom (drone state) (default 30Hz from mavros/local_position/odom),
    // and _referenceTraj
