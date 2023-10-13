@@ -41,11 +41,12 @@ def generate_launch_description():
         remappings=[
             ('px4_ros/in/odom', 'interceptor/mavros/local_position/odom'),
             ('in/imu', 'interceptor/mavros/imu/data'),
-            # ('traj_predictor/in/ref_traj', 'traj_predictor/in/ref_traj'),
-            # ('traj_predictor/in/ref_traj_poses', 'traj_predictor/ref_traj_poses'),
+            ('traj_predictor/in/ref_traj', 'traj_predictor/in/ref_traj'),
+            ('traj_predictor/in/ref_traj_poses', 'traj_predictor/ref_traj_poses'),
             ('mpc_tracker/out/path', 'mpc_tracker/path'),
             ('mpc_tracker/command/trajectory', 'mpc_tracker/command/trajectory'),
-            ('traj_predictor/in/ref_traj_path', 'traj_predictor/const_vel_path')
+            ('traj_predictor/in/ref_traj_path', 'traj_predictor/const_vel_path'),
+            ('mpc_tracker/command/trajectory', 'mpc_tracker/command/trajectory')
         ],
         # prefix='gdb -ex run --args'
     )
