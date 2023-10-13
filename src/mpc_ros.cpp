@@ -86,7 +86,11 @@ MPCROS::MPCROS(): Node("mpc_trajectory_generator")
         RCLCPP_INFO(this->get_logger(),"[MPCROS] Could not initialize MPC problem");
         return;
    }
+   // Resize some variables in the initialization phase
    _referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1),1);
+   _solution_traj_msg.states.resize(_mpcWindow);
+   // Update _posehistory_vector for visualiztion
+   _posehistory_vector.resize(_mpcWindow+1);
 
    RCLCPP_INFO(this->get_logger(),"[MPCROS] will execute once reference trajectory is published...");
 
@@ -189,7 +193,6 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
       return;
    }
    _drone_state_last_t = _drone_state_current_t;
-   if(!_mpc->setCurrentState(_current_drone_state)) return;
 
    // Make sure we have enough state predictions of the target (reference trajectory)
    if (msg.poses.size() < (long unsigned int)(_mpcWindow+1) )
@@ -210,28 +213,9 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
       _referenceTraj(i*NUM_OF_STATES+4,0) = 0.0;
       _referenceTraj(i*NUM_OF_STATES+5,0) = 0.0;
    }
-   if(!_mpc->setReferenceTraj(_referenceTraj)) return;
-   // RCLCPP_INFO(this->get_logger(), "Done Setting _referenceTraj");
-   
 
-//    /* Solve MPC problem ! */
-   if(!_mpc->mpcLoop())
-   {
-      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Error in mpcLooop()");
-      return;
-   }
-
-   // Extract solutions, updates _optimal_state_traj, _optimal_control_traj, _mpc_ctrl_sol
-   extractSolution();
-
-   // Publish desired trajectory, visualization, ... etc
-   if(_pub_pose_path)
-   {
-      pubPoseHistory();
-   }
-
-   // Publish optimal trajectory
-   _desired_traj_pub->publish(_solution_traj_msg);
+   // set current state, refTraj, solve, extract solution, and publish msgs
+   mpcROSLoop();
 
 }
 
@@ -270,7 +254,6 @@ MPCROS::refPosesCallback(const geometry_msgs::msg::PoseArray & msg)
       return;
    }
    _drone_state_last_t = _drone_state_current_t;
-   if(!_mpc->setCurrentState(_current_drone_state)) return;
 
    // Make sure we have enough state predictions of the target (reference trajectory)
    if (msg.poses.size() < (long unsigned int)(_mpcWindow+1) )
@@ -290,27 +273,9 @@ MPCROS::refPosesCallback(const geometry_msgs::msg::PoseArray & msg)
       _referenceTraj(i*NUM_OF_STATES+4,0) = 0.0;
       _referenceTraj(i*NUM_OF_STATES+5,0) = 0.0;
    }
-   if(!_mpc->setReferenceTraj(_referenceTraj)) return;
-   
 
-//    /* Solve MPC problem ! */
-   if(!_mpc->mpcLoop())
-   {
-      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Error in mpcLooop()");
-      return;
-   }
-
-   // Extract solutions, updates _optimal_state_traj, _optimal_control_traj, _mpc_ctrl_sol
-   extractSolution();
-
-   // Publish desired trajectory, visualization, ... etc
-   if(_pub_pose_path)
-   {
-      pubPoseHistory();
-   }
-
-   // Publish optimal trajectory
-   _desired_traj_pub->publish(_solution_traj_msg);
+   // set current state, refTraj, solve, extract solution, and publish msgs
+   mpcROSLoop();
 }
 
 void
@@ -348,7 +313,6 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
       return;
    }
    _drone_state_last_t = _drone_state_current_t;
-   if(!_mpc->setCurrentState(_current_drone_state)) return;
 
    // Make sure we have enough state predictions of the target (reference trajectory)
    if (msg.states.size() < (long unsigned int)(_mpcWindow+1) )
@@ -368,29 +332,11 @@ MPCROS::refTrajCallback(const custom_trajectory_msgs::msg::StateTrajectory & msg
       _referenceTraj(i*NUM_OF_STATES+4,0) = msg.states[i].position.y;
       _referenceTraj(i*NUM_OF_STATES+5,0) = msg.states[i].position.z;
    }
-   if(!_mpc->setReferenceTraj(_referenceTraj)) return;
    
+   // set current state, refTraj, solve, extract solution, and publish msgs
+   mpcROSLoop();
 
-//    /* Solve MPC problem ! */
-   if(!_mpc->mpcLoop())
-   {
-      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Error in mpcLooop()");
-      return;
-   }
-
-   // Extract solutions, updates _optimal_state_traj, _optimal_control_traj, _mpc_ctrl_sol
-   extractSolution();
-
-   // Publish desired trajectory, visualization, ... etc
-   if(_pub_pose_path)
-   {
-      pubPoseHistory();
-   }
-
-   // Publish optimal trajectory
-   _desired_traj_pub->publish(_solution_traj_msg);
-   // Publish first control solution u[0] to a lower level controller
-   // pubMultiDofTraj();
+   return;
 }
 
 void
@@ -402,9 +348,6 @@ MPCROS::extractSolution(void)
    auto optimal_state_traj = _mpc->getOptimalStateTraj();
    auto optimal_control_traj = _mpc->getOptimalControlTraj();
 
-   _solution_traj_msg.states.resize(_mpcWindow);
-   // Update _posehistory_vector for visualiztion
-   _posehistory_vector.resize(_mpcWindow+1);
    geometry_msgs::msg::PoseStamped pose_msg;
    double start_t = this->now().seconds();
    for (int i=0; i < _mpcWindow+1; i++)
@@ -441,10 +384,69 @@ MPCROS::extractSolution(void)
    _solution_traj_msg.max_acceleration = _mpc->getMaxAccel().maxCoeff();
    _solution_traj_msg.max_velocity = _mpc->getMaxVel().maxCoeff();
 
+   // First control input (and corresponding state)
+   // This can be used by a lower level controller
+
+   _multidof_msg.header.frame_id = _reference_frame_id;
+   _multidof_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(start_t*1e9));
+   _multidof_msg.points.resize(1);
+   _multidof_msg.points[0].transforms.resize(1);
+   _multidof_msg.points[0].velocities.resize(1);
+   _multidof_msg.points[0].accelerations.resize(1);
+
+   _multidof_msg.points[0].transforms[0].translation.x = _solution_traj_msg.states[0].position.x;
+   _multidof_msg.points[0].transforms[0].translation.y = _solution_traj_msg.states[0].position.y;
+   _multidof_msg.points[0].transforms[0].translation.z = _solution_traj_msg.states[0].position.z;
+   _multidof_msg.points[0].velocities[0].linear.x = _solution_traj_msg.states[0].velocity.x;
+   _multidof_msg.points[0].velocities[0].linear.y = _solution_traj_msg.states[0].velocity.y;
+   _multidof_msg.points[0].velocities[0].linear.z = _solution_traj_msg.states[0].velocity.z;
+   _multidof_msg.points[0].accelerations[0].linear.x = _solution_traj_msg.states[0].acceleration.x;
+   _multidof_msg.points[0].accelerations[0].linear.y = _solution_traj_msg.states[0].acceleration.y;
+   _multidof_msg.points[0].accelerations[0].linear.z = _solution_traj_msg.states[0].acceleration.z;
+
    return;
 
 }
 
+
+bool MPCROS::mpcROSLoop(void)
+{
+   if(!_mpc->setCurrentState(_current_drone_state))
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::mpcROSLoop] Could not set _current_drone_state");
+      return false;
+   }
+   
+   if(!_mpc->setReferenceTraj(_referenceTraj))
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::mpcROSLoop] Could not set _referenceTraj");
+      return false;
+   }
+   
+
+   //Solve MPC problem
+   if(!_mpc->mpcLoop())
+   {
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::mpcROSLoop] Error in mpcLooop()");
+      return false;
+   }
+
+   // Extract solutions, updates _optimal_state_traj, _optimal_control_traj, _mpc_ctrl_sol
+   extractSolution();
+
+   // Publish desired trajectory, visualization, ... etc
+   if(_pub_pose_path)
+   {
+      pubPoseHistory();
+   }
+
+   // Publish optimal trajectory
+   _desired_traj_pub->publish(_solution_traj_msg);
+   // Publish first control solution u[0] to a lower level controller
+   pubMultiDofTraj();
+
+   return true;
+}
 
 void MPCROS::pubPoseHistory(void)
 {
@@ -455,4 +457,12 @@ void MPCROS::pubPoseHistory(void)
    msg.poses = _posehistory_vector;
 
    _poseHistory_pub->publish(msg);
+
+   return;
+}
+
+void MPCROS::pubMultiDofTraj(void)
+{
+   if(_multidof_msg.points.size() > 0)
+      _multiDofTraj_pub->publish(_multidof_msg);
 }

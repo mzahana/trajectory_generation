@@ -88,6 +88,8 @@ private:
    bool                  _pub_pose_path;         /** Whether to publish MPC predicted path for visualization in RViz */
    std::vector<geometry_msgs::msg::PoseStamped> _posehistory_vector; /** Holds the predicted positions of the MPC, for visualization */
 
+   trajectory_msgs::msg::MultiDOFJointTrajectory _multidof_msg;
+
    MPC *_mpc; /** MPC object */
 
    /**
@@ -95,6 +97,11 @@ private:
     * @param msg nav_msgs::msg::Odometry
    */
    void odomCallback(const nav_msgs::msg::Odometry & msg);
+   /**
+    * @brief IMU callback to get current velocity and acceleration
+    * @param msg sensor_msgs::msg::Imu
+   */
+   void imuCallback(const sensor_msgs::msg::Imu & msg);
    /**
     * @brief Callback for the reference trajectory as PoseArray
     * @param msg geometry_msgs::msg::PoseArray
@@ -106,12 +113,6 @@ private:
    */
    void refPathCallback(const nav_msgs::msg::Path & msg);
    /**
-    * @brief IMU callback to get current velocity and acceleration
-    * @param msg sensor_msgs::msg::Imu
-   */
-   void imuCallback(const sensor_msgs::msg::Imu & msg);
-
-   /**
     * @brief Callback of the MPC reference trajectory, which is expected to be published by traj_predictor node.
     * Updates _referenceTraj
     * @param msg custom_trajectory_msgs::msg::StateTrajectory
@@ -120,7 +121,9 @@ private:
 
    void extractSolution(void);
 
-   void pubPoseHistory(void); /** @todo implement */
+   bool mpcROSLoop(void);
+
+   void pubPoseHistory(void);
    void pubMultiDofTraj(void); /** @todo implement */
 
 };
