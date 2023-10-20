@@ -85,6 +85,8 @@ static constexpr int      NUM_OF_INPUTS = 2+1+1;      /** Number of control inpu
 
 static constexpr int      NUM_OF_XY_STATES = 6;       /** Number of UAV states in XY plane (position, velocity, acceleration) */
 static constexpr int      NUM_OF_XY_INPUTS = 2;      /** Number of control inputs of the UAV model in XY plane. jerk \in R^2 */
+static constexpr int      NUM_OF_XY_MIXED_VEL_CONST = 4; /** Number of constraints of the 2nd order approximation of xy velocity */
+static constexpr int      NUM_OF_XY_MIXED_ACCEL_CONST = 2; /** Number of constraints of the 1st order approximation of xy acceleration */
 
 static constexpr int      NUM_OF_Z_STATES = 3;       /** Number of UAV states along Z-axis (position, velocity, acceleration) */
 static constexpr int      NUM_OF_Z_INPUTS = 1;      /** Number of control inputs of the UAV model along Z-axis. jerk \in R^1 */
@@ -180,6 +182,8 @@ private:
   double                      _xy_input_weight;          /** XY - Input weight, used in _Q_XY */
   double                      _xy_smooth_input_weight;   /** XY - Weight/penality on input smoothing term */
 
+  Eigen::MatrixXd           _xy_referenceTraj;
+
   //////////////////////// Z variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
 
@@ -213,6 +217,8 @@ private:
   double                      _z_input_weight;          /** Z - Input weight, used in _Q_XY */
   double                      _z_smooth_input_weight;   /** Z - Weight/penality on input smoothing term */
 
+  Eigen::MatrixXd           _z_referenceTraj;
+
   //////////////////////// YAW variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
 
@@ -244,6 +250,8 @@ private:
   double                      _yaw_state_weight;          /** Yaw - State weight, used in _Q_XY. */
   double                      _yaw_input_weight;          /** Yaw - Input weight, used in _Q_XY */
   double                      _yaw_smooth_input_weight;   /** Yaw - Weight/penality on input smoothing term */
+
+  Eigen::MatrixXd           _yaw_referenceTraj;
 
   //////////////////////////////////// Solver objects ////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////////////

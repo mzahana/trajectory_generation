@@ -381,152 +381,429 @@ MPC::setYawMaxJerk(const double j)
    return true;
 }
 
-/////////////// @todo continue modifications from here ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
 void 
-MPC::setQ(void)
+MPC::setXYQ(void)
 {
-   _Q.setZero();
-   _Q(0,0) = _state_weight; // penality on position, x
-   _Q(1,1) = _state_weight; // penality on position, y
-   _Q(2,2) = _state_weight; // penality on position, z
+   // state: [x, x_dot, x_ddot, y, y_dot, y_ddot]
+   _xy_Q.setZero();
+   _xy_Q(0,0) = _xy_state_weight; // penality on position, x
+   _xy_Q(3,3) = _xy_state_weight; // penality on position, y
 
    if(_debug)
    {
-      std::cout<<"[MPC] Q matrix = "<<std::endl<< _Q <<std::endl;
+      std::cout<<"[MPC] _xy_Q matrix = "<< std::endl<< _xy_Q <<std::endl;
    }
    
    return;
 }
 
 void 
-MPC::setR(void)
+MPC::setZQ(void)
 {
-   _R = _input_weight * _R.setIdentity();
+   // state: [z, z_dot, z_ddot]
+   _z_Q.setZero();
+   _z_Q(0,0) = _z_state_weight; // penality on position, z
 
    if(_debug)
    {
-      std::cout<<"[MPC] R matrix: "<<std::endl<< _R <<std::endl;
+      std::cout<<"[MPC] _z_Q matrix = "<< std::endl<< _z_Q <<std::endl;
    }
-
-   return;
-}
-
-
-void 
-MPC::setTransitionMatrix(void)
-{
-   // state: [px, py, pz, vx, vy, vz]
-   _A.setIdentity();   
-   _A.block(0,3, 3, 3) = _dt * Eigen::Matrix3d::Identity();
-   if(_debug)
-   {
-      std::cout<< "[MPC] Transition matrix A = " <<std::endl<< _A <<std::endl;
-   }
-   return;
-}
-
-void 
-MPC::setInputMatrix(void)
-{
-   _B.setZero();
-   _B.block(3,0,3,3) = _dt * Eigen::Matrix3d::Identity();
-   if(_debug)
-   {
-      std::cout<<"Input matrix B = " << std::endl<< _B <<std::endl;
-   }
-   return;
-}
-
-void 
-MPC::setStateBounds(void)
-{
-   _xMin.setZero();
-   _xMax.setZero();
-
-
-   // state: [px, py, pz, vx, vy, vz]
-   _xMin(0) = -1.0*OsqpEigen::INFTY;   _xMax(0) = OsqpEigen::INFTY; // px
-   _xMin(1) = -1.0*OsqpEigen::INFTY;   _xMax(1) = OsqpEigen::INFTY; // py
-   _xMin(2) = _minAltitude;            _xMax(2) = OsqpEigen::INFTY; // pz
    
-   _xMin(3) = -1.0*_maxVel(0);   _xMax(3) = _maxVel(0); // vx
-   _xMin(4) = -1.0*_maxVel(1);   _xMax(4) = _maxVel(1); // vy
-   _xMin(5) = -1.0*_maxVel(2);   _xMax(5) = _maxVel(2); // vz
+   return;
+}
+
+void 
+MPC::setYawQ(void)
+{
+   // state: [yaw, yaw_dot, yaw_ddot]
+   _yaw_Q.setZero();
+   _yaw_Q(0,0) = _yaw_state_weight; // penality on position, yaw
+
+   if(_debug)
+   {
+      std::cout<<"[MPC] _yaw_Q matrix = "<< std::endl<< _yaw_Q <<std::endl;
+   }
+   
+   return;
+}
+
+void 
+MPC::setXYR(void)
+{
+   _xy_R = _xy_input_weight * _xy_R.setIdentity();
+
+   if(_debug)
+   {
+      std::cout<<"[MPC] _xy_R matrix: "<<std::endl<< _xy_R <<std::endl;
+   }
+
+   return;
+}
+
+void 
+MPC::setZR(void)
+{
+   _z_R = _z_input_weight * _z_R.setIdentity();
+
+   if(_debug)
+   {
+      std::cout<<"[MPC] _z_R matrix: "<<std::endl<< _z_R <<std::endl;
+   }
+
+   return;
+}
+
+void 
+MPC::setYawR(void)
+{
+   _yaw_R = _yaw_input_weight * _yaw_R.setIdentity();
+
+   if(_debug)
+   {
+      std::cout<<"[MPC] _yaw_R matrix: "<<std::endl<< _yaw_R <<std::endl;
+   }
 
    return;
 }
 
 
-
 void 
-MPC::setControlBounds(void)
+MPC::setXYTransitionMatrix(void)
 {
-   _uMin = -1.0*_maxAccel;
-   _uMax = _maxAccel;
+   // state: [x, x_dot, x_ddot, y, y_dot, y_ddot]
+   _xy_A.setIdentity();   
+   _xy_A(0,1) = _xy_A(1,2) = _xy_A(3,4) = _xy_A(4,5) = _dt;
+   _xy_A(0,2) = _xy_A(3,5) = _dt*_dt/2.0;
+   if(_debug)
+   {
+      std::cout<< "[MPC] Transition matrix _xy_A = " <<std::endl<< _xy_A <<std::endl;
+   }
    return;
 }
 
+void 
+MPC::setZTransitionMatrix(void)
+{
+   // state: [z, z_dot, z_ddot]
+   _z_A.setIdentity();   
+   _z_A(0,1) = _z_A(1,2) = _dt;
+   _z_A(0,2) = _dt*_dt/2.0;
+   if(_debug)
+   {
+      std::cout<< "[MPC] Transition matrix _z_A = " <<std::endl<< _z_A <<std::endl;
+   }
+   return;
+}
 
 void 
-MPC::castMPCToQPHessian(void)
+MPC::setYawTransitionMatrix(void)
 {
-   int h_size = NUM_OF_STATES*(_mpcWindow+1) + NUM_OF_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
-   _hessian.resize(h_size, h_size);
-   _hessian = Eigen::MatrixXd::Zero(h_size, h_size);
+   // state: [yaw, yaw_dot, yaw_ddot]
+   _yaw_A.setIdentity();   
+   _yaw_A(0,1) = _yaw_A(1,2) = _dt;
+   _yaw_A(0,2) = _dt*_dt/2.0;
+   if(_debug)
+   {
+      std::cout<< "[MPC] Transition matrix _yaw_A = " <<std::endl<< _yaw_A <<std::endl;
+   }
+   return;
+}
+
+void 
+MPC::setXYInputMatrix(void)
+{
+   _xy_B.setZero();
+   _xy_B(2,0) = _xy_B(5,1) = _dt;
+   if(_debug)
+   {
+      std::cout<< "Input matrix _xy_B = " << std::endl<< _xy_B <<std::endl;
+   }
+   return;
+}
+
+void 
+MPC::setZInputMatrix(void)
+{
+   _z_B.setZero();
+   _z_B(2,0) = _dt;
+   if(_debug)
+   {
+      std::cout<< "Input matrix _z_B = " << std::endl<< _z_B <<std::endl;
+   }
+   return;
+}
+
+void 
+MPC::setYawInputMatrix(void)
+{
+   _yaw_B.setZero();
+   _yaw_B(2,0) = _dt;
+   if(_debug)
+   {
+      std::cout<< "Input matrix _yaw_B = " << std::endl<< _yaw_B <<std::endl;
+   }
+   return;
+}
+
+void 
+MPC::setXYStateBounds(void)
+{
+   // This function is no useable in this implementation since the xy velocity constraints
+   // are functions of the generated solutions of the vel/accel of the z dynamics
+   // _xy_Min.setZero();
+   // _xy_Max.setZero();
+
+
+   // // state: [x, x_dot, x_ddot, y, y_dot, y_ddot]
+   // _xMin(0) = -1.0*OsqpEigen::INFTY;   _xMax(0) = OsqpEigen::INFTY; // px
+   // _xMin(1) = -1.0*OsqpEigen::INFTY;   _xMax(1) = OsqpEigen::INFTY; // py
+   // _xMin(2) = _minAltitude;            _xMax(2) = OsqpEigen::INFTY; // pz
+   
+   // _xMin(3) = -1.0*_maxVel(0);   _xMax(3) = _maxVel(0); // vx
+   // _xMin(4) = -1.0*_maxVel(1);   _xMax(4) = _maxVel(1); // vy
+   // _xMin(5) = -1.0*_maxVel(2);   _xMax(5) = _maxVel(2); // vz
+
+   return;
+}
+
+void 
+MPC::setZStateBounds(void)
+{
+   _z_Min.setZero();
+   _z_Max.setZero();
+   // // state: [z, z_dot, z_ddot]
+   _z_Min(0,0) = -1.0*OsqpEigen::INFTY;   _z_Max(0,0) = OsqpEigen::INFTY;
+   _z_Min(1,0) = -1.0*_z_MaxVel;          _z_Max(1,0) = _z_MaxVel;
+   _z_Min(2,0) = -1.0*_z_MaxAccel;        _z_Max(2,0) = _z_MaxAccel;
+
+   return;
+}
+
+void 
+MPC::setYawStateBounds(void)
+{
+   _yaw_Min.setZero();
+   _yaw_Max.setZero();
+   // // state: [yaw, yaw_dot, yaw_ddot]
+   _yaw_Min(0,0) = -2.0*M_PI;          _yaw_Max(0,0) = 2*M_PI;
+   _yaw_Min(1,0) = -1.0*_yaw_MaxVel;   _yaw_Max(1,0) = _yaw_MaxVel;
+   _yaw_Min(2,0) = -1.0*_yaw_MaxAccel; _yaw_Max(2,0) = _yaw_MaxAccel;
+
+   return;
+}
+
+void 
+MPC::setXYControlBounds(void)
+{
+   // jerk bounds
+   _xy_uMin.setOnes(); _xy_uMax.setOnes();
+   _xy_uMin = -1.0*_xy_MaxJerk*_xy_uMin;
+   _xy_uMax = _xy_MaxJerk*_xy_uMax;
+   return;
+}
+
+void 
+MPC::setZControlBounds(void)
+{
+   // jerk bounds
+   _z_uMin = -1.0*_z_MaxJerk;
+   _z_uMax = _z_MaxJerk;
+   return;
+}
+
+void 
+MPC::setYawControlBounds(void)
+{
+   // jerk bounds
+   _yaw_uMin = -1.0*_yaw_MaxJerk;
+   _yaw_uMax = _yaw_MaxJerk;
+   return;
+}
+
+void 
+MPC::castXYMPCToQPHessian(void)
+{
+   int h_size = NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
+   _xy_hessian.resize(h_size, h_size);
+   _xy_hessian = Eigen::MatrixXd::Zero(h_size, h_size);
 
    // Add _Q to _hessian
    for (int i=0; i<_mpcWindow+1; i++)
    {
-      _hessian.block(NUM_OF_STATES*i, NUM_OF_STATES*i, NUM_OF_STATES, NUM_OF_STATES) = _Q;
+      _xy_hessian.block(NUM_OF_XY_STATES*i, NUM_OF_XY_STATES*i, NUM_OF_XY_STATES, NUM_OF_XY_STATES) = _xy_Q;
    }
 
    // Add _R to _hessian
-   int idx = (_mpcWindow+1)*NUM_OF_STATES; //initial index after adding _Q
+   int idx = (_mpcWindow+1)*NUM_OF_XY_STATES; //initial index after adding _Q
    for (int i=0; i<_mpcWindow; i++)
    {
-      _hessian.block(idx+i*NUM_OF_INPUTS, idx+i*NUM_OF_INPUTS, NUM_OF_INPUTS, NUM_OF_INPUTS) = _R;
+      _xy_hessian.block(idx+i*NUM_OF_XY_INPUTS, idx+i*NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS) = _xy_R;
    }
 
    if (_enable_control_smoothing)
    {
-      MatUbyU s = _smooth_input_weight * MatUbyU::Identity();
-      Eigen::MatrixXd S = Eigen::MatrixXd::Identity(NUM_OF_INPUTS*(_mpcWindow-1), NUM_OF_INPUTS*(_mpcWindow-1));
+      MatUbyU_XY s = _xy_smooth_input_weight * MatUbyU_XY::Identity();
+      Eigen::MatrixXd S = Eigen::MatrixXd::Identity(NUM_OF_XY_INPUTS*(_mpcWindow-1), NUM_OF_XY_INPUTS*(_mpcWindow-1));
       // Input difference matrix
-      Eigen::MatrixXd U_diff = Eigen::MatrixXd::Zero(NUM_OF_INPUTS*(_mpcWindow-1), NUM_OF_INPUTS*_mpcWindow);
+      Eigen::MatrixXd U_diff = Eigen::MatrixXd::Zero(NUM_OF_XY_INPUTS*(_mpcWindow-1), NUM_OF_XY_INPUTS*_mpcWindow);
       for (int i=0; i<(_mpcWindow-1); i++)
       {
-         S.block(i*NUM_OF_INPUTS, i*NUM_OF_INPUTS, NUM_OF_INPUTS, NUM_OF_INPUTS) = s;
-         U_diff.block(i*NUM_OF_INPUTS, i*NUM_OF_INPUTS, NUM_OF_INPUTS, NUM_OF_INPUTS) = -1.0*MatUbyU::Identity();
-         U_diff.block(i*NUM_OF_INPUTS, (i+1)*NUM_OF_INPUTS, NUM_OF_INPUTS, NUM_OF_INPUTS) = MatUbyU::Identity();
+         S.block(i*NUM_OF_XY_INPUTS, i*NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS) = s;
+         U_diff.block(i*NUM_OF_XY_INPUTS, i*NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS) = -1.0*MatUbyU_XY::Identity();
+         U_diff.block(i*NUM_OF_XY_INPUTS, (i+1)*NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS) = MatUbyU_XY::Identity();
       }
 
       Eigen::MatrixXd product = U_diff.transpose()*S*U_diff;
-      auto N_x = NUM_OF_STATES*(_mpcWindow+1);
-      auto N_u = NUM_OF_INPUTS*_mpcWindow;
-      _hessian.block(N_x,N_x, N_u,N_u) = _hessian.block(N_x,N_x, N_u,N_u) + product;
+      auto N_x = NUM_OF_XY_STATES*(_mpcWindow+1);
+      auto N_u = NUM_OF_XY_INPUTS*_mpcWindow;
+      _xy_hessian.block(N_x,N_x, N_u,N_u) = _xy_hessian.block(N_x,N_x, N_u,N_u) + product;
    }
 
    return;
 }
 
 void 
-MPC::castMPCToQPGradient(void)
+MPC::castZMPCToQPHessian(void)
 {
-   int g_size = NUM_OF_STATES*(_mpcWindow+1) + NUM_OF_INPUTS*_mpcWindow;
-   _gradient.resize(g_size);
-   _gradient.setZero();
+   int h_size = NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
+   _z_hessian.resize(h_size, h_size);
+   _z_hessian = Eigen::MatrixXd::Zero(h_size, h_size);
+
+   // Add _Q to _hessian
+   for (int i=0; i<_mpcWindow+1; i++)
+   {
+      _z_hessian.block(NUM_OF_Z_STATES*i, NUM_OF_Z_STATES*i, NUM_OF_Z_STATES, NUM_OF_Z_STATES) = _z_Q;
+   }
+
+   // Add _R to _hessian
+   int idx = (_mpcWindow+1)*NUM_OF_Z_STATES; //initial index after adding _Q
+   for (int i=0; i<_mpcWindow; i++)
+   {
+      _z_hessian.block(idx+i*NUM_OF_Z_INPUTS, idx+i*NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS) = _z_R;
+   }
+
+   if (_enable_control_smoothing)
+   {
+      MatUbyU_Z s = _z_smooth_input_weight * MatUbyU_Z::Identity();
+      Eigen::MatrixXd S = Eigen::MatrixXd::Identity(NUM_OF_Z_INPUTS*(_mpcWindow-1), NUM_OF_Z_INPUTS*(_mpcWindow-1));
+      // Input difference matrix
+      Eigen::MatrixXd U_diff = Eigen::MatrixXd::Zero(NUM_OF_Z_INPUTS*(_mpcWindow-1), NUM_OF_Z_INPUTS*_mpcWindow);
+      for (int i=0; i<(_mpcWindow-1); i++)
+      {
+         S.block(i*NUM_OF_Z_INPUTS, i*NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS) = s;
+         U_diff.block(i*NUM_OF_Z_INPUTS, i*NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS) = -1.0*MatUbyU_Z::Identity();
+         U_diff.block(i*NUM_OF_Z_INPUTS, (i+1)*NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS) = MatUbyU_Z::Identity();
+      }
+
+      Eigen::MatrixXd product = U_diff.transpose()*S*U_diff;
+      auto N_x = NUM_OF_Z_STATES*(_mpcWindow+1);
+      auto N_u = NUM_OF_Z_INPUTS*_mpcWindow;
+      _z_hessian.block(N_x,N_x, N_u,N_u) = _z_hessian.block(N_x,N_x, N_u,N_u) + product;
+   }
+
+   return;
+}
+
+void 
+MPC::castYawMPCToQPHessian(void)
+{
+   int h_size = NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
+   _yaw_hessian.resize(h_size, h_size);
+   _yaw_hessian = Eigen::MatrixXd::Zero(h_size, h_size);
+
+   // Add _Q to _hessian
+   for (int i=0; i<_mpcWindow+1; i++)
+   {
+      _yaw_hessian.block(NUM_OF_YAW_STATES*i, NUM_OF_YAW_STATES*i, NUM_OF_YAW_STATES, NUM_OF_YAW_STATES) = _yaw_Q;
+   }
+
+   // Add _R to _hessian
+   int idx = (_mpcWindow+1)*NUM_OF_YAW_STATES; //initial index after adding _Q
+   for (int i=0; i<_mpcWindow; i++)
+   {
+      _yaw_hessian.block(idx+i*NUM_OF_YAW_INPUTS, idx+i*NUM_OF_YAW_INPUTS, NUM_OF_YAW_INPUTS, NUM_OF_YAW_INPUTS) = _yaw_R;
+   }
+
+   if (_enable_control_smoothing)
+   {
+      MatUbyU_Z s = _yaw_smooth_input_weight * MatUbyU_YAW::Identity();
+      Eigen::MatrixXd S = Eigen::MatrixXd::Identity(NUM_OF_YAW_INPUTS*(_mpcWindow-1), NUM_OF_YAW_INPUTS*(_mpcWindow-1));
+      // Input difference matrix
+      Eigen::MatrixXd U_diff = Eigen::MatrixXd::Zero(NUM_OF_YAW_INPUTS*(_mpcWindow-1), NUM_OF_YAW_INPUTS*_mpcWindow);
+      for (int i=0; i<(_mpcWindow-1); i++)
+      {
+         S.block(i*NUM_OF_YAW_INPUTS, i*NUM_OF_YAW_INPUTS, NUM_OF_YAW_INPUTS, NUM_OF_YAW_INPUTS) = s;
+         U_diff.block(i*NUM_OF_YAW_INPUTS, i*NUM_OF_YAW_INPUTS, NUM_OF_YAW_INPUTS, NUM_OF_YAW_INPUTS) = -1.0*MatUbyU_YAW::Identity();
+         U_diff.block(i*NUM_OF_YAW_INPUTS, (i+1)*NUM_OF_YAW_INPUTS, NUM_OF_YAW_INPUTS, NUM_OF_YAW_INPUTS) = MatUbyU_YAW::Identity();
+      }
+
+      Eigen::MatrixXd product = U_diff.transpose()*S*U_diff;
+      auto N_x = NUM_OF_YAW_STATES*(_mpcWindow+1);
+      auto N_u = NUM_OF_YAW_INPUTS*_mpcWindow;
+      _yaw_hessian.block(N_x,N_x, N_u,N_u) = _yaw_hessian.block(N_x,N_x, N_u,N_u) + product;
+   }
+
+   return;
+}
+
+void 
+MPC::castXYMPCToQPGradient(void)
+{
+   int g_size = NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow;
+   _xy_gradient.resize(g_size);
+   _xy_gradient.setZero();
 
    // Populate the gradient vector
    for(int i=0; i<_mpcWindow+1; i++)
    {
-      _gradient.segment(i*NUM_OF_STATES,NUM_OF_STATES) = -1.0*_Q*_referenceTraj.block(i*NUM_OF_STATES,0,NUM_OF_STATES,1);
+      _xy_gradient.segment(i*NUM_OF_XY_STATES,NUM_OF_XY_STATES) = -1.0*_xy_Q*_xy_referenceTraj.block(i*NUM_OF_XY_STATES,0,NUM_OF_XY_STATES,1);
    }
 
    if(_debug)
    {
-      std::cout<<"QP gradient vector q = "<<std::endl<<_gradient<<std::endl;
+      std::cout<<"XY QP gradient vector q = "<<std::endl<<_xy_gradient<<std::endl;
+   }
+
+   return;
+}
+
+void 
+MPC::castZMPCToQPGradient(void)
+{
+   int g_size = NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow;
+   _xy_gradient.resize(g_size);
+   _xy_gradient.setZero();
+
+   // Populate the gradient vector
+   for(int i=0; i<_mpcWindow+1; i++)
+   {
+      _z_gradient.segment(i*NUM_OF_Z_STATES,NUM_OF_Z_STATES) = -1.0*_z_Q*_z_referenceTraj.block(i*NUM_OF_Z_STATES,0,NUM_OF_Z_STATES,1);
+   }
+
+   if(_debug)
+   {
+      std::cout<<"Z QP gradient vector q = "<<std::endl<<_z_gradient<<std::endl;
+   }
+
+   return;
+}
+
+void 
+MPC::castYawMPCToQPGradient(void)
+{
+   int g_size = NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow;
+   _yaw_gradient.resize(g_size);
+   _yaw_gradient.setZero();
+
+   // Populate the gradient vector
+   for(int i=0; i<_mpcWindow+1; i++)
+   {
+      _yaw_gradient.segment(i*NUM_OF_Z_STATES,NUM_OF_Z_STATES) = -1.0*_yaw_Q*_yaw_referenceTraj.block(i*NUM_OF_YAW_STATES,0,NUM_OF_YAW_STATES,1);
+   }
+
+   if(_debug)
+   {
+      std::cout<<"Yaw QP gradient vector q = "<<std::endl<<_yaw_gradient<<std::endl;
    }
 
    return;
@@ -534,64 +811,215 @@ MPC::castMPCToQPGradient(void)
 
 
 void 
-MPC::updateQPGradientVector(void)
+MPC::updateXYQPGradientVector(void)
 {
    for(int i=0; i<_mpcWindow+1; i++)
    {
-      _gradient.segment(i*NUM_OF_STATES,NUM_OF_STATES) = -1.0*_Q*_referenceTraj.block(i*NUM_OF_STATES,0,NUM_OF_STATES,1);
+      _xy_gradient.segment(i*NUM_OF_XY_STATES,NUM_OF_XY_STATES) = -1.0*_xy_Q*_xy_referenceTraj.block(i*NUM_OF_XY_STATES,0,NUM_OF_XY_STATES,1);
    }
    if (_debug)
    {
-      std::cout << "[MPC::updateQPGradientVector] Updated QP gradient = \n" << _gradient << "\n";
+      std::cout << "[MPC::updateXYQPGradientVector] Updated XY QP gradient = \n" << _xy_gradient << "\n";
    }
 
    return;
 }
 
+void 
+MPC::updateZQPGradientVector(void)
+{
+   for(int i=0; i<_mpcWindow+1; i++)
+   {
+      _z_gradient.segment(i*NUM_OF_Z_STATES,NUM_OF_Z_STATES) = -1.0*_z_Q*_z_referenceTraj.block(i*NUM_OF_Z_STATES,0,NUM_OF_Z_STATES,1);
+   }
+   if (_debug)
+   {
+      std::cout << "[MPC::updateZQPGradientVector] Updated Z QP gradient = \n" << _z_gradient << "\n";
+   }
+
+   return;
+}
 
 void 
-MPC::castMPCToQPConstraintMatrix(void)
+MPC::updateYawQPGradientVector(void)
+{
+   for(int i=0; i<_mpcWindow+1; i++)
+   {
+      _yaw_gradient.segment(i*NUM_OF_YAW_STATES,NUM_OF_YAW_STATES) = -1.0*_yaw_Q*_yaw_referenceTraj.block(i*NUM_OF_YAW_STATES,0,NUM_OF_YAW_STATES,1);
+   }
+   if (_debug)
+   {
+      std::cout << "[MPC::updateYawQPGradientVector] Updated Yaw QP gradient = \n" << _yaw_gradient << "\n";
+   }
+
+   return;
+}
+
+void 
+MPC::castXYMPCToQPConstraintMatrix(void)
 {
    // Initialize Ac
-   int size_r = 2*NUM_OF_STATES * (_mpcWindow+1) + NUM_OF_INPUTS * _mpcWindow;
-   int size_c = NUM_OF_STATES * (_mpcWindow+1) + NUM_OF_INPUTS * _mpcWindow;
-   _Ac.resize(size_r, size_c);
-   _Ac.setZero();
+   int size_r = 2*NUM_OF_XY_STATES * (_mpcWindow+1) +
+               NUM_OF_XY_INPUTS * _mpcWindow +
+               (NUM_OF_XY_MIXED_VEL_CONST + NUM_OF_XY_MIXED_ACCEL_CONST) * _mpcWindow;
+   int size_c = NUM_OF_XY_STATES * (_mpcWindow+1) + NUM_OF_XY_INPUTS * _mpcWindow;
+   _xy_Ac.resize(size_r, size_c);
+   _xy_Ac.setZero();
    //_Ac = Eigen::MatrixXd::Zero(size_r, size_c);
 
    // length of states/inputs over _mpcWindow
-   auto N_x = NUM_OF_STATES*(_mpcWindow+1);
-   auto N_u = NUM_OF_INPUTS * _mpcWindow;
+   auto N_x = NUM_OF_XY_STATES*(_mpcWindow+1);
+   auto N_u = NUM_OF_XY_INPUTS * _mpcWindow;
 
-   _Ac.block(0, 0, N_x, N_x) = -1.0 * Eigen::MatrixXd::Identity(N_x,N_x);
+   // Initial condition constraint
+   _xy_Ac.block(0, 0, N_x, N_x) = -1.0 * Eigen::MatrixXd::Identity(N_x,N_x);
+   // Dynamics constraints
    for (int i=1; i<_mpcWindow+1; i++)
    {
-      // upper-left block
-      _Ac.block(i*NUM_OF_STATES, (i-1)*NUM_OF_STATES, NUM_OF_STATES, NUM_OF_STATES) = _A;
-      // upper-right block
-      _Ac.block(i*NUM_OF_STATES, N_x+(i-1)*NUM_OF_INPUTS, NUM_OF_STATES, NUM_OF_INPUTS) = _B;
+      // upper-left block. Dynamics transition matrix
+      _xy_Ac.block(i*NUM_OF_XY_STATES, (i-1)*NUM_OF_XY_STATES, NUM_OF_XY_STATES, NUM_OF_XY_STATES) = _xy_A;
+      // upper-right block Dynamics input matrix
+      _xy_Ac.block(i*NUM_OF_XY_STATES, N_x+(i-1)*NUM_OF_XY_INPUTS, NUM_OF_XY_STATES, NUM_OF_XY_INPUTS) = _xy_B;
       
       // input constraints: lower-right block
       //_Ac.block(2*N_x+(i-1)*NUM_OF_STATES, N_x+(i-1)*NUM_OF_INPUTS, NUM_OF_STATES, NUM_OF_INPUTS) = Eigen::MatrixXd::Identity(NUM_OF_STATES,NUM_OF_INPUTS);
    }
 
-   // Bounds: State block, middle-left block = Identity
-   _Ac.block(N_x, 0, N_x, N_x) = Eigen::MatrixXd::Identity(N_x,N_x);
+   // Individual state bounds:  middle-left block = Identity
+   _xy_Ac.block(N_x, 0, N_x, N_x) = Eigen::MatrixXd::Identity(N_x,N_x);
 
-   // Bounds: Inputs block, lower-right block = Identity
-   _Ac.block(2*N_x, N_x, N_u, N_u) = Eigen::MatrixXd::Identity(N_u,N_u);
+   // Inputs bounds: lower-right block = Identity
+   _xy_Ac.block(2*N_x, N_x, N_u, N_u) = Eigen::MatrixXd::Identity(N_u,N_u);
+
+   // Mixed vel/accel constraints
+   auto N_MIX = NUM_OF_XY_MIXED_ACCEL_CONST + NUM_OF_XY_MIXED_VEL_CONST;
+   for (int i=0; i < _mpcWindow; i++)
+   {
+      // Mixed-velocity contraints
+      //sqrt(3)/2 vx + 0.5 vy
+      _xy_Ac(2*N_x+N_u + N_MIX*i +0, NUM_OF_XY_STATES *(i+1) + 1) = std::sqrt(3)/2;
+      _xy_Ac(2*N_x+N_u + N_MIX*i +0, NUM_OF_XY_STATES *(i+1) + 4) = 0.5;
+
+      // sqrt(3)/2 vx - 0.5 vy
+      _xy_Ac(2*N_x+N_u + N_MIX*i +1, NUM_OF_XY_STATES *(i+1) + 1) = std::sqrt(3)/2;
+      _xy_Ac(2*N_x+N_u + N_MIX*i +1, NUM_OF_XY_STATES *(i+1) + 4) = -0.5;
+
+      //0.5 vx + sqrt(3)/2 vy
+      _xy_Ac(2*N_x+N_u + N_MIX*i +2, NUM_OF_XY_STATES *(i+1) + 1) = 0.5;
+      _xy_Ac(2*N_x+N_u + N_MIX*i +2, NUM_OF_XY_STATES *(i+1) + 4) = std::sqrt(3)/2;
+
+      //-0.5 vx + sqrt(3)/2 vy
+      _xy_Ac(2*N_x+N_u + N_MIX*i +3, NUM_OF_XY_STATES *(i+1) + 1) = -0.5;
+      _xy_Ac(2*N_x+N_u + N_MIX*i +3, NUM_OF_XY_STATES *(i+1) + 4) = std::sqrt(3)/2;
+
+      // Mixed-acceleration contraints
+      // sqrt(2)/2 ax + sqrt(2)/2 ay
+      _xy_Ac(2*N_x+N_u + N_MIX*i +4, NUM_OF_XY_STATES *(i+1) + 2) = std::sqrt(2)/2;
+      _xy_Ac(2*N_x+N_u + N_MIX*i +4, NUM_OF_XY_STATES *(i+1) + 5) = std::sqrt(2)/2;
+
+      // sqrt(2)/2 ax - sqrt(2)/2 ay
+      _xy_Ac(2*N_x+N_u + N_MIX*i +5, NUM_OF_XY_STATES *(i+1) + 2) = std::sqrt(2)/2;
+      _xy_Ac(2*N_x+N_u + N_MIX*i +5, NUM_OF_XY_STATES *(i+1) + 5) = -std::sqrt(2)/2;
+
+   }
 
    if(_debug)
    {
-      std::cout<<"Constraint matrix A_c = " <<std::endl<< _Ac <<std::endl;
+      std::cout<<"Constraint matrix _xy_Ac = " <<std::endl<< _xy_Ac <<std::endl;
    }
 
    return;
 }
 
+void 
+MPC::castZMPCToQPConstraintMatrix(void)
+{
+   // Initialize Ac
+   int size_r = 2*NUM_OF_Z_STATES * (_mpcWindow+1) + NUM_OF_Z_INPUTS * _mpcWindow;
+   int size_c = NUM_OF_Z_STATES * (_mpcWindow+1) + NUM_OF_Z_INPUTS * _mpcWindow;
+   _z_Ac.resize(size_r, size_c);
+   _z_Ac.setZero();
+   //_Ac = Eigen::MatrixXd::Zero(size_r, size_c);
+
+   // length of states/inputs over _mpcWindow
+   auto N_x = NUM_OF_Z_STATES*(_mpcWindow+1);
+   auto N_u = NUM_OF_Z_INPUTS * _mpcWindow;
+
+   // Initial condition constraint
+   _z_Ac.block(0, 0, N_x, N_x) = -1.0 * Eigen::MatrixXd::Identity(N_x,N_x);
+   // Dynamics constraints
+   for (int i=1; i<_mpcWindow+1; i++)
+   {
+      // upper-left block. Dynamics transition matrix
+      _z_Ac.block(i*NUM_OF_Z_STATES, (i-1)*NUM_OF_Z_STATES, NUM_OF_Z_STATES, NUM_OF_Z_STATES) = _z_A;
+      // upper-right block Dynamics input matrix
+      _z_Ac.block(i*NUM_OF_Z_STATES, N_x+(i-1)*NUM_OF_Z_INPUTS, NUM_OF_Z_STATES, NUM_OF_Z_INPUTS) = _z_B;
+      
+      // input constraints: lower-right block
+      //_Ac.block(2*N_x+(i-1)*NUM_OF_STATES, N_x+(i-1)*NUM_OF_INPUTS, NUM_OF_STATES, NUM_OF_INPUTS) = Eigen::MatrixXd::Identity(NUM_OF_STATES,NUM_OF_INPUTS);
+   }
+
+   // Individual state bounds:  middle-left block = Identity
+   _z_Ac.block(N_x, 0, N_x, N_x) = Eigen::MatrixXd::Identity(N_x,N_x);
+
+   // Inputs bounds: lower-right block = Identity
+   _z_Ac.block(2*N_x, N_x, N_u, N_u) = Eigen::MatrixXd::Identity(N_u,N_u);
+
+   if(_debug)
+   {
+      std::cout<<"Constraint matrix _z_Ac = " <<std::endl<< _z_Ac <<std::endl;
+   }
+
+   return;
+}
 
 void 
-MPC::castMPCToQPConstraintBounds(void)
+MPC::castYawMPCToQPConstraintMatrix(void)
+{
+   // Initialize Ac
+   int size_r = 2*NUM_OF_YAW_STATES * (_mpcWindow+1) + NUM_OF_YAW_INPUTS * _mpcWindow;
+   int size_c = NUM_OF_YAW_STATES * (_mpcWindow+1) + NUM_OF_YAW_INPUTS * _mpcWindow;
+   _yaw_Ac.resize(size_r, size_c);
+   _yaw_Ac.setZero();
+   //_Ac = Eigen::MatrixXd::Zero(size_r, size_c);
+
+   // length of states/inputs over _mpcWindow
+   auto N_x = NUM_OF_YAW_STATES*(_mpcWindow+1);
+   auto N_u = NUM_OF_YAW_INPUTS * _mpcWindow;
+
+   // Initial condition constraint
+   _yaw_Ac.block(0, 0, N_x, N_x) = -1.0 * Eigen::MatrixXd::Identity(N_x,N_x);
+   // Dynamics constraints
+   for (int i=1; i<_mpcWindow+1; i++)
+   {
+      // upper-left block. Dynamics transition matrix
+      _yaw_Ac.block(i*NUM_OF_YAW_STATES, (i-1)*NUM_OF_YAW_STATES, NUM_OF_YAW_STATES, NUM_OF_YAW_STATES) = _yaw_A;
+      // upper-right block Dynamics input matrix
+      _yaw_Ac.block(i*NUM_OF_YAW_STATES, N_x+(i-1)*NUM_OF_YAW_INPUTS, NUM_OF_YAW_STATES, NUM_OF_YAW_INPUTS) = _yaw_B;
+      
+      // input constraints: lower-right block
+      //_Ac.block(2*N_x+(i-1)*NUM_OF_STATES, N_x+(i-1)*NUM_OF_INPUTS, NUM_OF_STATES, NUM_OF_INPUTS) = Eigen::MatrixXd::Identity(NUM_OF_STATES,NUM_OF_INPUTS);
+   }
+
+   // Individual state bounds:  middle-left block = Identity
+   _yaw_Ac.block(N_x, 0, N_x, N_x) = Eigen::MatrixXd::Identity(N_x,N_x);
+
+   // Inputs bounds: lower-right block = Identity
+   _yaw_Ac.block(2*N_x, N_x, N_u, N_u) = Eigen::MatrixXd::Identity(N_u,N_u);
+
+   if(_debug)
+   {
+      std::cout<<"Constraint matrix _yaw_Ac = " <<std::endl<< _yaw_Ac <<std::endl;
+   }
+
+   return;
+}
+
+/////////////// @todo continue modifications from here ////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+
+void 
+MPC::castXYMPCToQPConstraintBounds(void)
 {
    // length of states/inputs over _mpcWindow
    // _mpcWindow+1, because x(0) is included
