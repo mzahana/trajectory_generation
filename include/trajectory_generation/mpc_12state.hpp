@@ -80,8 +80,8 @@ void printError(const char* format, const Args&... args) {
     printf("\n");
 }
 
-static constexpr int      NUM_OF_STATES = 6;       /** Number of UAV states (position, velocity) */
-static constexpr int      NUM_OF_INPUTS = 3;      /** Number of control inputs of the UAV model. acceleration \in R^3 */
+static constexpr int      NUM_OF_STATES = 6+3+3;       /** Number of UAV states (position, velocity, acceleration, alsoo for yaw) */
+static constexpr int      NUM_OF_INPUTS = 2+1+1;      /** Number of control inputs of the UAV model. acceleration \in R^3 */
 
 static constexpr int      NUM_OF_XY_STATES = 6;       /** Number of UAV states in XY plane (position, velocity, acceleration) */
 static constexpr int      NUM_OF_XY_INPUTS = 2;      /** Number of control inputs of the UAV model in XY plane. jerk \in R^2 */
@@ -169,6 +169,8 @@ private:
   Eigen::VectorXd             _xy_upperBounds;           /** Upper bounds vector of the XY QP problem */
   double                      _xy_MaxVel;            /** Maximum horizontal velocity */
   double                      _xy_MaxAccel;            /** Maximum horizontal acceleration */
+  double                      _xy_MaxJerk;            /** Maximum horizontal jerk */
+
 
   Eigen::Vector2d             _xy_u0_opt;          /** XY - MPC first optimal control solution u_opt[0] (jerk)*/
   Eigen::VectorXd             _xy_x_opt;    /** XY - Entire state trajectory part of the MPC solution */
@@ -176,7 +178,7 @@ private:
 
   double                      _xy_state_weight;          /** XY - State weight, used in _Q_XY. */
   double                      _xy_input_weight;          /** XY - Input weight, used in _Q_XY */
-  double                      _xy_smooth_input_weight;   /** Weight/penality on input smoothing term */
+  double                      _xy_smooth_input_weight;   /** XY - Weight/penality on input smoothing term */
 
   //////////////////////// Z variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -200,6 +202,7 @@ private:
   Eigen::VectorXd             _z_upperBounds;           /** Z - Upper bounds vector of the QP problem */
   double                      _z_MaxVel;            /** Z - Maximum velocity */
   double                      _z_MaxAccel;            /** Z - Maximum  acceleration */
+  double                      _z_MaxJerk;            /** Z - Maximum jerk */
   double                      _minAltitude;           /** Minimum altitude to commanded by the MPC */
 
   double                      _z_u0_opt;          /** Z - MPC first optimal control solution u_opt[0] (jerk)*/
@@ -208,6 +211,7 @@ private:
 
   double                      _z_state_weight;          /** Z - State weight, used in _Q_XY. */
   double                      _z_input_weight;          /** Z - Input weight, used in _Q_XY */
+  double                      _z_smooth_input_weight;   /** Z - Weight/penality on input smoothing term */
 
   //////////////////////// YAW variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -231,6 +235,7 @@ private:
   Eigen::VectorXd             _yaw_upperBounds;           /** Yaw - Upper bounds vector of the QP problem */
   double                      _yaw_MaxVel;            /** Yaw - Maximum velocity */
   double                      _yaw_MaxAccel;            /** Yaw - Maximum  acceleration */
+  double                      _yaw_MaxJerk;            /** Yaw - Maximum jerk */
 
   double                      _yaw_u0_opt;          /** Yaw - MPC first optimal control solution u_opt[0] (jerk)*/
   Eigen::VectorXd             _yaw_x_opt;    /** Yaw - Entire state trajectory part of the MPC solution */
@@ -238,6 +243,7 @@ private:
 
   double                      _yaw_state_weight;          /** Yaw - State weight, used in _Q_XY. */
   double                      _yaw_input_weight;          /** Yaw - Input weight, used in _Q_XY */
+  double                      _yaw_smooth_input_weight;   /** Yaw - Weight/penality on input smoothing term */
 
   //////////////////////////////////// Solver objects ////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////////////
