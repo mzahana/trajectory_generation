@@ -1043,10 +1043,10 @@ bool MPC::computeXYVelMaxFromZAccelMax(void)
       _xy_Max(NUM_OF_XY_STATES*(i-1) + 3, 0) = OsqpEigen::INFTY; // upper bound on y
 
       _xy_Min(NUM_OF_XY_STATES*(i-1) + 2, 0) = -_xy_MaxAccel; // lower bound on ax
-      _xy_Max(NUM_OF_XY_STATES*(i-1) + 2, 0) = -_xy_MaxAccel; // upper bound on ax
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + 2, 0) = _xy_MaxAccel; // upper bound on ax
 
       _xy_Min(NUM_OF_XY_STATES*(i-1) + 5, 0) = -_xy_MaxAccel; // lower bound on ay
-      _xy_Max(NUM_OF_XY_STATES*(i-1) + 5, 0) = -_xy_MaxAccel; // upper bound on ay
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + 5, 0) = _xy_MaxAccel; // upper bound on ay
 
       
       // z state: [z, vz, az]
