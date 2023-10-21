@@ -163,8 +163,8 @@ private:
   Eigen::MatrixXd             _xy_Ac;                    /** Linear constraint  matrix of the QP problem */
   Eigen::SparseMatrix<double> _xy_Ac_sparse;       /** Sparse version of Ac */ 
   
-  MatX_XY                     _xy_Min;                  /** Lower bounds on position, velocity, acceleration in XY plane */
-  MatX_XY                     _xy_Max;                  /** Upper bounds on position, velocity, acceleration in XY plane */
+  Eigen::VectorXd             _xy_Min;                  /** Lower bounds on position/velocity/accel trajectory in XY plane. vel bounds are computed using _z_x_opt */
+  Eigen::VectorXd             _xy_Max;                  /** Upper bounds on  position/velocity/accel trajectory in XY plane. vel bounds are computed using _z_x_opt*/
   MatU_XY                     _xy_uMin;                  /** Lower bounds on jerk in XY plane */
   MatU_XY                     _xy_uMax;                  /** Upper bounds on jerk in XY plane */
   Eigen::VectorXd             _xy_lowerBounds;            /** Lower bounds vector of the XY QP problem */
@@ -182,7 +182,7 @@ private:
   double                      _xy_input_weight;          /** XY - Input weight, used in _Q_XY */
   double                      _xy_smooth_input_weight;   /** XY - Weight/penality on input smoothing term */
 
-  Eigen::MatrixXd           _xy_referenceTraj;
+  Eigen::MatrixXd             _xy_referenceTraj;
 
   //////////////////////// Z variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -217,7 +217,7 @@ private:
   double                      _z_input_weight;          /** Z - Input weight, used in _Q_XY */
   double                      _z_smooth_input_weight;   /** Z - Weight/penality on input smoothing term */
 
-  Eigen::MatrixXd           _z_referenceTraj;
+  Eigen::MatrixXd             _z_referenceTraj;
 
   //////////////////////// YAW variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -251,7 +251,7 @@ private:
   double                      _yaw_input_weight;          /** Yaw - Input weight, used in _Q_XY */
   double                      _yaw_smooth_input_weight;   /** Yaw - Weight/penality on input smoothing term */
 
-  Eigen::MatrixXd           _yaw_referenceTraj;
+  Eigen::MatrixXd             _yaw_referenceTraj;
 
   //////////////////////////////////// Solver objects ////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////////////
@@ -390,6 +390,14 @@ private:
    * Result is saved in _lowerBounds and _upperBounds vetors.
    */
   // void castMPCToQPConstraintBounds(void);
+
+  /**
+   * @brief computes v_hmax(t) from a_z(t) and a_zmax. Requires solving the Z-axis optimization problem first.  
+   * Needed by castXYMPCToQPConstraintBounds()
+   * Uses _z_x_opt.
+   * Updates _xy_Min, _xy_Max.
+   */ 
+  bool computeXYVelMaxFromZAccelMax(void);
 
   void castXYMPCToQPConstraintBounds(void);
   void castZMPCToQPConstraintBounds(void);

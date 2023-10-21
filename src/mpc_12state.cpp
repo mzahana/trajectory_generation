@@ -31,6 +31,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+/**
+ * @todo resize _xy_Min, _xy_Max, _xy_refTraj, _z_refTraj, _yaw_refTraj, _refTraj
+ *    _current_state
+ * in the initialization
+*/
 #include "trajectory_generation/mpc_12state.hpp"
 
 MPC::MPC():
@@ -1013,6 +1018,54 @@ MPC::castYawMPCToQPConstraintMatrix(void)
    }
 
    return;
+}
+
+bool MPC::computeXYVelMaxFromZAccelMax(void)
+{
+   // sanity check
+   if(_z_x_opt.size() < 1)
+   {
+      printError("[MPC::computeXYVelMaxFromZAccelMax] _z_x_opt is empty. Cannot compute _xy_VelMin and _xy_VelMax");
+      return false;
+   }
+
+   // The resize should be done once in the initialization
+   //_xy_Min.resize(NUM_OF_XY_STATES*_mpcWindow); _xy_Max.resize(NUM_OF_XY_STATES*_mpcWindow);
+   _xy_Min.setZero(); _xy_Max.setZero();
+
+   for (int i=1; i<(_mpcWindow+1); i++)
+   {
+      _xy_Min(NUM_OF_XY_STATES*(i-1) + 0, 0) = -OsqpEigen::INFTY; // lower bound on x
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + 0, 0) = OsqpEigen::INFTY; // upper bound on x
+
+      _xy_Min(NUM_OF_XY_STATES*(i-1) + 2, 0) = -OsqpEigen::INFTY; // lower bound on y
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + 2, 0) = OsqpEigen::INFTY; // upper bound on y
+
+      
+      auto v_zt = _z_x_opt(NUM_OF_XY_STATES*i+1, 0); // v_z(t)
+      if( v_zt < 0) // descending, v_z(t) < 0  keep velocity at max
+      {
+         _xy_Min(NUM_OF_XY_STATES*(i-1) + 1, 0) = -_xy_MaxVel; // lower bound on vx
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + 1, 0) = _xy_MaxVel; // upper bound on vx
+
+         _xy_Min(NUM_OF_XY_STATES*(i-1) + 3, 0) = -_xy_MaxVel; // lower bound on vy
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + 3, 0) = _xy_MaxVel; // upper bound on vy
+      }
+      else // ascending, v_z(t) > 0
+      {
+         double a_zt = _z_x_opt(NUM_OF_XY_STATES*i+2, 0);
+         double d = a_zt /_z_MaxAccel; // Make sure the  _z_MaxVel > 0!!
+
+         _xy_Min(NUM_OF_XY_STATES*(i-1) + 1, 0) = -1.0 * (_xy_MaxVel*std::sqrt(1 - d*d)); // lower bound on vx
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + 1, 0) = (_xy_MaxVel * std::sqrt(1 - d*d)); // upper bound on vx
+
+         _xy_Min(NUM_OF_XY_STATES*(i-1) + 3, 0) = -1.0 * (_xy_MaxVel*std::sqrt(1 - d*d)); // lower bound on vy
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + 3, 0) = (_xy_MaxVel * std::sqrt(1 - d*d)); // upper bound on vy
+      }
+      
+   }
+
+   return true;
 }
 
 /////////////// @todo continue modifications from here ////////////////////////////
