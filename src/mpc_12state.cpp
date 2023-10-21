@@ -1033,34 +1033,43 @@ bool MPC::computeXYVelMaxFromZAccelMax(void)
    //_xy_Min.resize(NUM_OF_XY_STATES*_mpcWindow); _xy_Max.resize(NUM_OF_XY_STATES*_mpcWindow);
    _xy_Min.setZero(); _xy_Max.setZero();
 
+   // state: [x, vx, ax, y, vy, ay]
    for (int i=1; i<(_mpcWindow+1); i++)
    {
       _xy_Min(NUM_OF_XY_STATES*(i-1) + 0, 0) = -OsqpEigen::INFTY; // lower bound on x
       _xy_Max(NUM_OF_XY_STATES*(i-1) + 0, 0) = OsqpEigen::INFTY; // upper bound on x
 
-      _xy_Min(NUM_OF_XY_STATES*(i-1) + 2, 0) = -OsqpEigen::INFTY; // lower bound on y
-      _xy_Max(NUM_OF_XY_STATES*(i-1) + 2, 0) = OsqpEigen::INFTY; // upper bound on y
+      _xy_Min(NUM_OF_XY_STATES*(i-1) + 3, 0) = -OsqpEigen::INFTY; // lower bound on y
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + 3, 0) = OsqpEigen::INFTY; // upper bound on y
+
+      _xy_Min(NUM_OF_XY_STATES*(i-1) + 2, 0) = -_xy_MaxAccel; // lower bound on ax
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + 2, 0) = -_xy_MaxAccel; // upper bound on ax
+
+      _xy_Min(NUM_OF_XY_STATES*(i-1) + 5, 0) = -_xy_MaxAccel; // lower bound on ay
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + 5, 0) = -_xy_MaxAccel; // upper bound on ay
 
       
-      auto v_zt = _z_x_opt(NUM_OF_XY_STATES*i+1, 0); // v_z(t)
+      // z state: [z, vz, az]
+      auto v_zt = _z_x_opt(NUM_OF_Z_STATES*i+1, 0); // v_z(t)
       if( v_zt < 0) // descending, v_z(t) < 0  keep velocity at max
       {
          _xy_Min(NUM_OF_XY_STATES*(i-1) + 1, 0) = -_xy_MaxVel; // lower bound on vx
          _xy_Max(NUM_OF_XY_STATES*(i-1) + 1, 0) = _xy_MaxVel; // upper bound on vx
 
-         _xy_Min(NUM_OF_XY_STATES*(i-1) + 3, 0) = -_xy_MaxVel; // lower bound on vy
-         _xy_Max(NUM_OF_XY_STATES*(i-1) + 3, 0) = _xy_MaxVel; // upper bound on vy
+         _xy_Min(NUM_OF_XY_STATES*(i-1) + 4, 0) = -_xy_MaxVel; // lower bound on vy
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + 4, 0) = _xy_MaxVel; // upper bound on vy
       }
       else // ascending, v_z(t) > 0
       {
-         double a_zt = _z_x_opt(NUM_OF_XY_STATES*i+2, 0);
+         double a_zt = _z_x_opt(NUM_OF_Z_STATES*i+2, 0);
          double d = a_zt /_z_MaxAccel; // Make sure the  _z_MaxVel > 0!!
+         double v_hmax_t = xy_MaxVel*std::sqrt(1 - d*d);
 
-         _xy_Min(NUM_OF_XY_STATES*(i-1) + 1, 0) = -1.0 * (_xy_MaxVel*std::sqrt(1 - d*d)); // lower bound on vx
-         _xy_Max(NUM_OF_XY_STATES*(i-1) + 1, 0) = (_xy_MaxVel * std::sqrt(1 - d*d)); // upper bound on vx
+         _xy_Min(NUM_OF_XY_STATES*(i-1) + 1, 0) = -1.0 * v_hmax_t; // lower bound on vx
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + 1, 0) = v_hmax_t; // upper bound on vx
 
-         _xy_Min(NUM_OF_XY_STATES*(i-1) + 3, 0) = -1.0 * (_xy_MaxVel*std::sqrt(1 - d*d)); // lower bound on vy
-         _xy_Max(NUM_OF_XY_STATES*(i-1) + 3, 0) = (_xy_MaxVel * std::sqrt(1 - d*d)); // upper bound on vy
+         _xy_Min(NUM_OF_XY_STATES*(i-1) + 4, 0) = -1.0 * v_hmax_t; // lower bound on vy
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + 4, 0) = v_hmax_t; // upper bound on vy
       }
       
    }
