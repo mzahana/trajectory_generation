@@ -1032,126 +1032,280 @@ bool MPC::computeXYVelMaxFromZAccelMax(void)
    // The resize should be done once in the initialization
    //_xy_Min.resize(NUM_OF_XY_STATES*_mpcWindow); _xy_Max.resize(NUM_OF_XY_STATES*_mpcWindow);
    _xy_Min.setZero(); _xy_Max.setZero();
+   _xy_MixedState_Min.setZero(); _xy_MixedState_Max.setZero();
+
+   auto s  = NUM_OF_XY_MIXED_VEL_CONST + NUM_OF_XY_MIXED_ACCEL_CONST;
 
    // state: [x, vx, ax, y, vy, ay]
    for (int i=1; i<(_mpcWindow+1); i++)
    {
-      _xy_Min(NUM_OF_XY_STATES*(i-1) + 0, 0) = -OsqpEigen::INFTY; // lower bound on x
-      _xy_Max(NUM_OF_XY_STATES*(i-1) + 0, 0) = OsqpEigen::INFTY; // upper bound on x
-
-      _xy_Min(NUM_OF_XY_STATES*(i-1) + 3, 0) = -OsqpEigen::INFTY; // lower bound on y
-      _xy_Max(NUM_OF_XY_STATES*(i-1) + 3, 0) = OsqpEigen::INFTY; // upper bound on y
-
-      _xy_Min(NUM_OF_XY_STATES*(i-1) + 2, 0) = -_xy_MaxAccel; // lower bound on ax
-      _xy_Max(NUM_OF_XY_STATES*(i-1) + 2, 0) = _xy_MaxAccel; // upper bound on ax
-
-      _xy_Min(NUM_OF_XY_STATES*(i-1) + 5, 0) = -_xy_MaxAccel; // lower bound on ay
-      _xy_Max(NUM_OF_XY_STATES*(i-1) + 5, 0) = _xy_MaxAccel; // upper bound on ay
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_X_IDX, 0) = OsqpEigen::INFTY; // upper bound on x
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_Y_IDX, 0) = OsqpEigen::INFTY; // upper bound on y
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_AX_IDX, 0) = _xy_MaxAccel; // upper bound on ax
+      _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_AY_IDX, 0) = _xy_MaxAccel; // upper bound on ay
 
       
       // z state: [z, vz, az]
-      auto v_zt = _z_x_opt(NUM_OF_Z_STATES*i+1, 0); // v_z(t)
+      auto v_zt = _z_x_opt(NUM_OF_Z_STATES*i+ Z_VZ_IDX, 0); // v_z(t)
       if( v_zt < 0) // descending, v_z(t) < 0  keep velocity at max
       {
-         _xy_Min(NUM_OF_XY_STATES*(i-1) + 1, 0) = -_xy_MaxVel; // lower bound on vx
-         _xy_Max(NUM_OF_XY_STATES*(i-1) + 1, 0) = _xy_MaxVel; // upper bound on vx
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_VX_IDX, 0) = _xy_MaxVel; // upper bound on vx
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_VY_IDX, 0) = _xy_MaxVel; // upper bound on vy
 
-         _xy_Min(NUM_OF_XY_STATES*(i-1) + 4, 0) = -_xy_MaxVel; // lower bound on vy
-         _xy_Max(NUM_OF_XY_STATES*(i-1) + 4, 0) = _xy_MaxVel; // upper bound on vy
+         // Mixed state velocity bounds
+         _xy_MixedState_Max.block(s*i,0,NUM_OF_XY_MIXED_VEL_CONST,1) = _xy_MaxVel*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_VEL_CONST,1);
       }
       else // ascending, v_z(t) > 0
       {
-         double a_zt = _z_x_opt(NUM_OF_Z_STATES*i+2, 0);
+         double a_zt = _z_x_opt(NUM_OF_Z_STATES*i+ Z_AZ_IDX, 0);
          double d = a_zt /_z_MaxAccel; // Make sure the  _z_MaxVel > 0!!
-         double v_hmax_t = xy_MaxVel*std::sqrt(1 - d*d);
+         double v_hmax_t = _xy_MaxVel*std::sqrt(1 - d*d);
 
-         _xy_Min(NUM_OF_XY_STATES*(i-1) + 1, 0) = -1.0 * v_hmax_t; // lower bound on vx
-         _xy_Max(NUM_OF_XY_STATES*(i-1) + 1, 0) = v_hmax_t; // upper bound on vx
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_VX_IDX, 0) = v_hmax_t; // upper bound on vx
+         _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_VY_IDX, 0) = v_hmax_t; // upper bound on vy
 
-         _xy_Min(NUM_OF_XY_STATES*(i-1) + 4, 0) = -1.0 * v_hmax_t; // lower bound on vy
-         _xy_Max(NUM_OF_XY_STATES*(i-1) + 4, 0) = v_hmax_t; // upper bound on vy
+         // Mixed state velocity bounds
+         _xy_MixedState_Max.block(s*i,0,NUM_OF_XY_MIXED_VEL_CONST,1) = v_hmax_t*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_VEL_CONST,1);
       }
-      
+
+      // Mixed state acceleration bounds
+         _xy_MixedState_Max.block(s*i+NUM_OF_XY_MIXED_VEL_CONST,0, NUM_OF_XY_MIXED_ACCEL_CONST,1) = _xy_MaxAccel*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_ACCEL_CONST,1);
+
    }
+
+   _xy_Min = -1.0*_xy_Max;
+   _xy_MixedState_Min = -1.0* _xy_MixedState_Max;
 
    return true;
 }
 
-/////////////// @todo continue modifications from here ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
 void 
 MPC::castXYMPCToQPConstraintBounds(void)
 {
+   Eigen::VectorXd lowerEquality = Eigen::MatrixXd::Zero(NUM_OF_XY_STATES*(_mpcWindow+1),1 );
+   Eigen::VectorXd upperEquality;
+   lowerEquality.block(0,0,NUM_OF_XY_STATES,1) = -_xy_current_state;
+   upperEquality = lowerEquality;
+   if(_debug)
+      printInfo("XY - Calculated lowerEquality and upperEquality");
+
+   // Controls (jerk) bounds
+   Eigen::VectorXd uLowerInequality = Eigen::MatrixXd::Zero(NUM_OF_XY_INPUTS*_mpcWindow,1 );
+   Eigen::VectorXd uUpperInequality;
+   uUpperInequality = uLowerInequality;
+
+   
+   for(int i=0; i<_mpcWindow; i++){
+      uLowerInequality.block(NUM_OF_XY_INPUTS*i, 0, NUM_OF_XY_INPUTS, 1) = _xy_uMin;
+      uUpperInequality.block(NUM_OF_XY_INPUTS*i, 0, NUM_OF_XY_INPUTS, 1) = _xy_uMax;
+   }
+   if(_debug)
+      printInfo("XY - Calculated uLowerInequality and uUpperInequality");
+
+   auto size = 2*NUM_OF_XY_STATES*(_mpcWindow+1) + 
+               NUM_OF_XY_INPUTS*_mpcWindow +
+               (NUM_OF_XY_MIXED_ACCEL_CONST+NUM_OF_XY_MIXED_VEL_CONST)*_mpcWindow;
+   // @todo Resizing should be done in the initialization
+   _xy_lowerBounds.resize(size); _xy_lowerBounds.setZero();
+   _xy_upperBounds.resize(size); _xy_upperBounds.setZero();
+   _xy_lowerBounds << lowerEquality,
+                        _xy_current_state,
+                        _xy_Min,
+                        uLowerInequality,
+                        _xy_MixedState_Min;
+   _xy_upperBounds << upperEquality,
+                        _xy_current_state,
+                        _xy_Max,
+                        uUpperInequality,
+                        _xy_MixedState_Max;
+      
+   if(_debug)
+   {
+      std::cout<<"XY - Lower bounds _xy_lowerBounds = "<<std::endl<< _xy_lowerBounds <<std::endl;
+      std::cout<<"XY - Upper bounds _xy_upperBounds = "<<std::endl<< _xy_upperBounds <<std::endl;
+   }
+
+   return;
+}
+
+void 
+MPC::castZMPCToQPConstraintBounds(void)
+{
    // length of states/inputs over _mpcWindow
-   // _mpcWindow+1, because x(0) is included
-   auto N_x = NUM_OF_STATES*(_mpcWindow+1);
-   auto N_u = NUM_OF_INPUTS * _mpcWindow;
+   // _mpcWindow+1, because z(0) is included
+   auto N_x = NUM_OF_Z_STATES*(_mpcWindow+1);
+   auto N_u = NUM_OF_Z_INPUTS * _mpcWindow;
 
    // evaluate the lower and the upper inequality vectors
-    Eigen::VectorXd lowerInequality = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1) +  NUM_OF_INPUTS * _mpcWindow, 1);
-    Eigen::VectorXd upperInequality = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1) +  NUM_OF_INPUTS * _mpcWindow, 1);
+    Eigen::VectorXd lowerInequality = Eigen::MatrixXd::Zero(NUM_OF_Z_STATES*(_mpcWindow+1) +  NUM_OF_Z_INPUTS * _mpcWindow, 1);
+    Eigen::VectorXd upperInequality = Eigen::MatrixXd::Zero(NUM_OF_Z_STATES*(_mpcWindow+1) +  NUM_OF_Z_INPUTS * _mpcWindow, 1);
     for(int i=0; i<_mpcWindow+1; i++){
-        lowerInequality.block(NUM_OF_STATES*i,0,NUM_OF_STATES,1) = _xMin;
-        upperInequality.block(NUM_OF_STATES*i,0,NUM_OF_STATES,1) = _xMax;
+        lowerInequality.block(NUM_OF_Z_STATES*i,0,NUM_OF_Z_STATES,1) = _z_Min;
+        upperInequality.block(NUM_OF_Z_STATES*i,0,NUM_OF_Z_STATES,1) = _z_Max;
     }
     for(int i=0; i<_mpcWindow; i++){
-        lowerInequality.block(NUM_OF_INPUTS * i + NUM_OF_STATES * (_mpcWindow + 1), 0, NUM_OF_INPUTS, 1) = _uMin;
-        upperInequality.block(NUM_OF_INPUTS * i + NUM_OF_STATES * (_mpcWindow + 1), 0, NUM_OF_INPUTS, 1) = _uMax;
+        lowerInequality.block(NUM_OF_Z_INPUTS * i + NUM_OF_Z_STATES * (_mpcWindow + 1), 0, NUM_OF_Z_INPUTS, 1) = _z_uMin*Eigen::VectorXd::Ones(NUM_OF_Z_INPUTS);
+        upperInequality.block(NUM_OF_Z_INPUTS * i + NUM_OF_Z_STATES * (_mpcWindow + 1), 0, NUM_OF_Z_INPUTS, 1) = _z_uMax*Eigen::VectorXd::Ones(NUM_OF_Z_INPUTS);
     }
     if(_debug)
-      printInfo("Calculated lowerInequality and upperInequality");
+      printInfo("Z - Calculated lowerInequality and upperInequality");
 
-    // evaluate the lower and the upper equality vectors
-    // This is only for debuggin, should be removed
-    if(_debug)
-      std::cout << "[MPC::castMPCToQPConstraintBounds]_current_drone_state = " << _current_state << std::endl;
-      
-    Eigen::VectorXd lowerEquality = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1),1 );
+    // evaluate the lower and the upper equality vectors      
+    Eigen::VectorXd lowerEquality = Eigen::MatrixXd::Zero(NUM_OF_Z_STATES*(_mpcWindow+1),1 );
     Eigen::VectorXd upperEquality;
-    lowerEquality.block(0,0,NUM_OF_STATES,1) = -_current_state;
+    lowerEquality.block(0,0,NUM_OF_Z_STATES,1) = -_z_current_state;
     upperEquality = lowerEquality;
-    lowerEquality = lowerEquality;
 
     if(_debug)
-      printInfo("Calculated lowerEquality and upperEquality");
+      printInfo("Z - Calculated lowerEquality and upperEquality");
 
-   _lowerBounds.resize(2*N_x + N_u,1);
-   _lowerBounds.setZero();
-   _upperBounds.resize(2*N_x + N_u,1);
-   _upperBounds.setZero();
+   _z_lowerBounds.resize(2*N_x + N_u,1);
+   _z_lowerBounds.setZero();
+   _z_upperBounds.resize(2*N_x + N_u,1);
+   _z_upperBounds.setZero();
 
-   _lowerBounds << lowerEquality,
+   _z_lowerBounds << lowerEquality,
         lowerInequality;
-   _upperBounds << upperEquality,
+   _z_upperBounds << upperEquality,
         upperInequality;
 
    if(_debug)
    {
-      std::cout<<"Lower bounds vector l = "<<std::endl<< _lowerBounds <<std::endl;
-      std::cout<<"Upper bounds vector u = "<<std::endl<< _upperBounds <<std::endl;
+      std::cout<<"Z - Lower bounds _z_lowerBounds = "<<std::endl<< _z_lowerBounds <<std::endl;
+      std::cout<<"Z - Upper bounds _z_upperBounds = "<<std::endl<< _z_upperBounds <<std::endl;
    }
 
    return;
 }
 
 void 
-MPC::updateQPConstraintsBounds(void)
+MPC::castYawMPCToQPConstraintBounds(void)
 {
-   // Equality for x(0)
-   _lowerBounds.block(0,0,NUM_OF_STATES,1) = -1.0*_current_state;
-   _upperBounds.block(0,0,NUM_OF_STATES,1) = -1.0*_current_state;
+   // length of states/inputs over _mpcWindow
+   // _mpcWindow+1, because yaw(0) is included
+   auto N_x = NUM_OF_YAW_STATES*(_mpcWindow+1);
+   auto N_u = NUM_OF_YAW_INPUTS * _mpcWindow;
+
+   // evaluate the lower and the upper inequality vectors
+    Eigen::VectorXd lowerInequality = Eigen::MatrixXd::Zero(NUM_OF_YAW_STATES*(_mpcWindow+1) +  NUM_OF_YAW_INPUTS * _mpcWindow, 1);
+    Eigen::VectorXd upperInequality = Eigen::MatrixXd::Zero(NUM_OF_YAW_STATES*(_mpcWindow+1) +  NUM_OF_YAW_INPUTS * _mpcWindow, 1);
+    for(int i=0; i<_mpcWindow+1; i++){
+        lowerInequality.block(NUM_OF_YAW_STATES*i,0,NUM_OF_YAW_STATES,1) = _yaw_Min;
+        upperInequality.block(NUM_OF_YAW_STATES*i,0,NUM_OF_YAW_STATES,1) = _yaw_Max;
+    }
+    for(int i=0; i<_mpcWindow; i++){
+        lowerInequality.block(NUM_OF_YAW_INPUTS * i + NUM_OF_YAW_STATES * (_mpcWindow + 1), 0, NUM_OF_YAW_INPUTS, 1) = _yaw_uMin*Eigen::VectorXd::Ones(NUM_OF_YAW_INPUTS);
+        upperInequality.block(NUM_OF_YAW_INPUTS * i + NUM_OF_YAW_STATES * (_mpcWindow + 1), 0, NUM_OF_YAW_INPUTS, 1) = _yaw_uMax*Eigen::VectorXd::Ones(NUM_OF_YAW_INPUTS);
+    }
+    if(_debug)
+      printInfo("Yaw - Calculated lowerInequality and upperInequality");
+
+    // evaluate the lower and the upper equality vectors      
+    Eigen::VectorXd lowerEquality = Eigen::MatrixXd::Zero(NUM_OF_YAW_STATES*(_mpcWindow+1),1 );
+    Eigen::VectorXd upperEquality;
+    lowerEquality.block(0,0,NUM_OF_YAW_STATES,1) = -_yaw_current_state;
+    upperEquality = lowerEquality;
+
+    if(_debug)
+      printInfo("Yaw - Calculated lowerEquality and upperEquality");
+
+   _yaw_lowerBounds.resize(2*N_x + N_u,1);
+   _yaw_lowerBounds.setZero();
+   _yaw_upperBounds.resize(2*N_x + N_u,1);
+   _yaw_upperBounds.setZero();
+
+   _yaw_lowerBounds << lowerEquality,
+        lowerInequality;
+   _yaw_upperBounds << upperEquality,
+        upperInequality;
 
    if(_debug)
    {
-      printInfo("[MPC::updateQPConstraintsBounds] QP bounds are updated");
-      std::cout << "[MPC::updateQPConstraintsBounds] Updated lower bound,l = \n " << _lowerBounds << "\n";
-      std::cout << "[MPC::updateQPConstraintsBounds] Updated upper bound,u = \n " << _upperBounds << "\n";
+      std::cout<<"Yaw - Lower bounds _yaw_lowerBounds = "<<std::endl<< _yaw_lowerBounds <<std::endl;
+      std::cout<<"Yaw - Upper bounds _yaw_upperBounds = "<<std::endl<< _yaw_upperBounds <<std::endl;
    }
 
    return;
 }
 
+void 
+MPC::updateXYQPConstraintsBounds(void)
+{
+   // @NOTE Needs computeXYVelMaxFromZAccelMax() to be executd first -> need to solve for _z_x_opt traj first
+
+   // _xy_lowerBounds << lowerEquality,
+   //                      _xy_current_state,
+   //                      _xy_Min,
+   //                      uLowerInequality,
+   //                      _xy_MixedState_Min;
+   // _xy_upperBounds << upperEquality,
+   //                      _xy_current_state,
+   //                      _xy_Max,
+   //                      uUpperInequality,
+   //                      _xy_MixedState_Max;
+   
+   // Equality for x(0)
+   _xy_lowerBounds.block(0,0,NUM_OF_XY_STATES,1) = -1.0*_xy_current_state;
+   _xy_upperBounds.block(0,0,NUM_OF_XY_STATES,1) = -1.0*_xy_current_state;
+
+   // Inequality for x(0)
+   _xy_lowerBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1),0,NUM_OF_XY_STATES,1) = _xy_current_state;
+   _xy_upperBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1),0,NUM_OF_XY_STATES,1) = _xy_current_state;
+   
+   // _xy_Min, _xy_Max
+   _xy_lowerBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1)+NUM_OF_XY_STATES,0,NUM_OF_XY_STATES*_mpcWindow,1) = _xy_Min;
+   _xy_upperBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1)+NUM_OF_XY_STATES,0,NUM_OF_XY_STATES*_mpcWindow,1) = _xy_Max;
+
+   // _xy_MixedState_Min, _xy_MixedState_Max
+   _xy_lowerBounds.block(2*NUM_OF_XY_STATES*(_mpcWindow+1)+NUM_OF_XY_INPUTS*_mpcWindow,0,(NUM_OF_XY_MIXED_ACCEL_CONST+NUM_OF_XY_MIXED_VEL_CONST)*_mpcWindow,1) = _xy_MixedState_Min;
+   _xy_upperBounds.block(2*NUM_OF_XY_STATES*(_mpcWindow+1)+NUM_OF_XY_INPUTS*_mpcWindow,0,(NUM_OF_XY_MIXED_ACCEL_CONST+NUM_OF_XY_MIXED_VEL_CONST)*_mpcWindow,1) = _xy_MixedState_Max;
+
+   if(_debug)
+   {
+      printInfo("[MPC::updateXYQPConstraintsBounds] XY - QP bounds are updated");
+      std::cout << "[MPC::updateXYQPConstraintsBounds] XY - Updated lower bound,l = \n " << _xy_lowerBounds << "\n";
+      std::cout << "[MPC::updateXYQPConstraintsBounds] XY - Updated upper bound,u = \n " << _xy_upperBounds << "\n";
+   }
+
+   return;
+}
+
+void 
+MPC::updateZQPConstraintsBounds(void)
+{
+   // Equality for x(0)
+   _z_lowerBounds.block(0,0,NUM_OF_Z_STATES,1) = -1.0*_z_current_state;
+   _z_upperBounds.block(0,0,NUM_OF_Z_STATES,1) = -1.0*_z_current_state;
+
+   if(_debug)
+   {
+      printInfo("[MPC::updateZQPConstraintsBounds] Z- QP bounds are updated");
+      std::cout << "[MPC::updateZQPConstraintsBounds] Updated _z_lowerBounds = \n " << _z_lowerBounds << "\n";
+      std::cout << "[MPC::updateZQPConstraintsBounds] Updated _z_upperBounds = \n " << _z_upperBounds << "\n";
+   }
+
+   return;
+}
+
+void 
+MPC::updateYawQPConstraintsBounds(void)
+{
+   // Equality for x(0)
+   _yaw_lowerBounds.block(0,0,NUM_OF_YAW_STATES,1) = -1.0*_yaw_current_state;
+   _yaw_upperBounds.block(0,0,NUM_OF_YAW_STATES,1) = -1.0*_yaw_current_state;
+
+   if(_debug)
+   {
+      printInfo("[MPC::updateYawQPConstraintsBounds] Yaw- QP bounds are updated");
+      std::cout << "[MPC::updateYawQPConstraintsBounds] Updated _yaw_lowerBounds = \n " << _yaw_lowerBounds << "\n";
+      std::cout << "[MPC::updateYawQPConstraintsBounds] Updated _yaw_upperBounds = \n " << _yaw_upperBounds << "\n";
+   }
+
+   return;
+}
+
+/////////////// @todo continue modifications from here ////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
 
 bool 
 MPC::initQPSolver(void)

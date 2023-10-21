@@ -82,17 +82,45 @@ void printError(const char* format, const Args&... args) {
 
 static constexpr int      NUM_OF_STATES = 6+3+3;       /** Number of UAV states (position, velocity, acceleration, alsoo for yaw) */
 static constexpr int      NUM_OF_INPUTS = 2+1+1;      /** Number of control inputs of the UAV model. acceleration \in R^3 */
+// Indices of each state in the total state vector
+static constexpr int      STATE_X_IDX=0;
+static constexpr int      STATE_VX_IDX=1;
+static constexpr int      STATE_AX_IDX=2;
+static constexpr int      STATE_Y_IDX=3;
+static constexpr int      STATE_VY_IDX=4;
+static constexpr int      STATE_AY_IDX=5;
+static constexpr int      STATE_Z_IDX=6;
+static constexpr int      STATE_VZ_IDX=7;
+static constexpr int      STATE_AZ_IDX=8;
+static constexpr int      STATE_Yaw_IDX=9;
+static constexpr int      STATE_VYaw_IDX=10;
+static constexpr int      STATE_AYaw_IDX=11;
 
 static constexpr int      NUM_OF_XY_STATES = 6;       /** Number of UAV states in XY plane (position, velocity, acceleration) */
 static constexpr int      NUM_OF_XY_INPUTS = 2;      /** Number of control inputs of the UAV model in XY plane. jerk \in R^2 */
 static constexpr int      NUM_OF_XY_MIXED_VEL_CONST = 4; /** Number of constraints of the 2nd order approximation of xy velocity */
 static constexpr int      NUM_OF_XY_MIXED_ACCEL_CONST = 2; /** Number of constraints of the 1st order approximation of xy acceleration */
+// Indices of each state in the XY state vector
+static constexpr int      XY_X_IDX=0;
+static constexpr int      XY_VX_IDX=1;
+static constexpr int      XY_AX_IDX=2;
+static constexpr int      XY_Y_IDX=3;
+static constexpr int      XY_VY_IDX=4;
+static constexpr int      XY_AY_IDX=5;
 
 static constexpr int      NUM_OF_Z_STATES = 3;       /** Number of UAV states along Z-axis (position, velocity, acceleration) */
 static constexpr int      NUM_OF_Z_INPUTS = 1;      /** Number of control inputs of the UAV model along Z-axis. jerk \in R^1 */
+// Indices of each state in the Z state vector
+static constexpr int      Z_Z_IDX=0;
+static constexpr int      Z_VZ_IDX=1;
+static constexpr int      Z_AZ_IDX=2;
 
 static constexpr int      NUM_OF_YAW_STATES = 3;       /** Number of UAV states for the yaw motion (position, velocity, acceleration) */
 static constexpr int      NUM_OF_YAW_INPUTS = 1;      /** Number of control inputs of the UAV model for yaw motion. jerk \in R^1 */
+// Indices of each state in the Yaw state vector
+static constexpr int      YAW_Yaw_IDX=0;
+static constexpr int      YAW_VYaw_IDX=1;
+static constexpr int      YAW_AYaw_IDX=2;
 
 // State
 using MatX_12STATE = Eigen::Matrix<double, NUM_OF_XY_STATES+NUM_OF_Z_STATES+NUM_OF_YAW_STATES, 1>;
@@ -165,6 +193,8 @@ private:
   
   Eigen::VectorXd             _xy_Min;                  /** Lower bounds on position/velocity/accel trajectory in XY plane. vel bounds are computed using _z_x_opt */
   Eigen::VectorXd             _xy_Max;                  /** Upper bounds on  position/velocity/accel trajectory in XY plane. vel bounds are computed using _z_x_opt*/
+  Eigen::VectorXd             _xy_MixedState_Min;
+  Eigen::VectorXd             _xy_MixedState_Max;
   MatU_XY                     _xy_uMin;                  /** Lower bounds on jerk in XY plane */
   MatU_XY                     _xy_uMax;                  /** Upper bounds on jerk in XY plane */
   Eigen::VectorXd             _xy_lowerBounds;            /** Lower bounds vector of the XY QP problem */
