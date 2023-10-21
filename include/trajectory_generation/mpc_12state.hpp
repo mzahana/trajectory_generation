@@ -183,6 +183,7 @@ private:
   double                      _xy_smooth_input_weight;   /** XY - Weight/penality on input smoothing term */
 
   Eigen::MatrixXd             _xy_referenceTraj;
+  MatX_XY                     _xy_current_state;
 
   //////////////////////// Z variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -218,6 +219,7 @@ private:
   double                      _z_smooth_input_weight;   /** Z - Weight/penality on input smoothing term */
 
   Eigen::MatrixXd             _z_referenceTraj;
+  MatX_Z                      _z_current_state;
 
   //////////////////////// YAW variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -252,6 +254,7 @@ private:
   double                      _yaw_smooth_input_weight;   /** Yaw - Weight/penality on input smoothing term */
 
   Eigen::MatrixXd             _yaw_referenceTraj;
+  MatX_YAW                    _yaw_current_state;
 
   //////////////////////////////////// Solver objects ////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////////////
