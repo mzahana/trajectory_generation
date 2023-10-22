@@ -122,8 +122,10 @@ static constexpr int      YAW_Yaw_IDX=0;
 static constexpr int      YAW_VYaw_IDX=1;
 static constexpr int      YAW_AYaw_IDX=2;
 
-// State
+// Full State
 using MatX_12STATE = Eigen::Matrix<double, NUM_OF_XY_STATES+NUM_OF_Z_STATES+NUM_OF_YAW_STATES, 1>;
+// Full control input
+using MatU_4INPUTS = Eigen::Matrix<double, NUM_OF_XY_INPUTS+NUM_OF_Z_INPUTS+NUM_OF_YAW_INPUTS, 1>;
 
 // for XY dynamics
 using MatXbyX_XY = Eigen::Matrix<double, NUM_OF_XY_STATES, NUM_OF_XY_STATES>;
@@ -169,6 +171,7 @@ private:
   double                    _alt_above_target;      /** Desired altitude above target. */
   Eigen::MatrixXd           _referenceTraj;         /** Target's predicted trajectory, over _mpcWindow. Received from the target predictor node*/
   double                    _ref_traj_last_t;       /** Time stamp of the last reference trajectory */
+  bool                      _received_refTraj;
   
   int                       _mpcWindow;             /** Number of prediction steps (N) */
 
@@ -176,6 +179,9 @@ private:
   bool                      _is_MPC_initialized;    /** True if MPC problem is initialized */
   bool                      _save_mpc_data;         /** Whether to save MPC data to _outputCSVFile */
   std::string               _outputCSVFile;         /** Full path to a CSV output file where MPC is stored */
+
+  Eigen::VectorXd           _x_opt;               /** Entire optimal state (x, x_dot, x_ddot, yaw, yaw_dot, yaw_ddot)*/
+  Eigen::VectorXd           _u_opt;               /** Entire optimal control inputs (jx, jy, jz, jyaw)*/
 
   //////////////////////// XY variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
@@ -435,7 +441,7 @@ private:
    * Uses _z_x_opt.
    * Updates _xy_Min, _xy_Max.
    */ 
-  bool computeXYVelMaxFromZAccelMax(void);
+  bool computeXYBounds(void);
 
   void castXYMPCToQPConstraintBounds(void);
   void castZMPCToQPConstraintBounds(void);
@@ -461,18 +467,25 @@ private:
   /**
   * @brief Updates _qpSolver bounds & gradient using _current_drone_state, and _referenceTraj
   */
-  bool updateQP(void);
+  // bool updateQP(void);
+
+  bool updateXYQP(void);
+  bool updateZQP(void);
+  bool updateYawQP(void);
 
   /**
   * @brief Extracts MPC solutions, contorl/state trajectories, from QP
   * Updates _state_traj_sol, _control_traj_sol
   */
   void extractSolution(void);
+  void extractXYSolution(void);
+  void extractZSolution(void);
+  void extractYawSolution(void);
 
   /**
   * @brief Prints information about the QP problem, e.g. number of optimization variables, size of the Hessian matrix, ... etc
   */
-  void printProblemInfo(void);
+  // void printProblemInfo(void);
 
 public:
 
@@ -576,7 +589,10 @@ bool setYawSmoothInputWeight(double w);
   bool setZMaxJerk(const double jzmax);
   bool setYawMaxJerk(const double jyawmax);
 
-  bool updateMPC(void);
+  // bool updateMPC(void);
+  bool updateXYMPC(void);
+  bool updateZMPC(void);
+  bool updateYawMPC(void);
 
  /**
    * @brief This is the main loop, which executes MPC control loop.

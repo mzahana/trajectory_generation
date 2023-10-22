@@ -57,6 +57,7 @@ _yaw_input_weight(0.1),
 _xy_smooth_input_weight(10),
 _z_smooth_input_weight(10),
 _yaw_smooth_input_weight(10),
+_received_refTraj(false),
 _enable_control_smoothing(true),
 _minAltitude(1.0),
 _is_MPC_initialized(false),
@@ -272,7 +273,7 @@ MPC::setCurrentState(const MatX_12STATE &x)
    _current_state = Eigen::MatrixXd::Zero(NUM_OF_STATES,1);
    _current_state <<  x;
    if(_debug)
-      std::cout << "[MPC::set_current_drone_state] _current_drone_state" << std::endl << _current_state << std::endl;
+      std::cout << "[MPC::setCurrentState] _current_state" << std::endl << _current_state << std::endl;
    _state_received = true;
    return true;
 }
@@ -1005,7 +1006,7 @@ MPC::castYawMPCToQPConstraintMatrix(void)
    return;
 }
 
-bool MPC::computeXYVelMaxFromZAccelMax(void)
+bool MPC::computeXYBounds(void)
 {
    // sanity check
    if(_z_x_opt.size() < 1)
@@ -1353,6 +1354,8 @@ MPC::initQPSolver(void)
 void MPC::initVariables(void)
 {
    _referenceTraj.resize(NUM_OF_STATES*(_mpcWindow+1),1); _referenceTraj.setZero();
+   _x_opt.resize(NUM_OF_STATES*(_mpcWindow+1)); _x_opt.setZero();
+   _u_opt.resize(NUM_OF_INPUTS*_mpcWindow); _u_opt.setZero();
    
    // xy
    int size;
@@ -1434,6 +1437,10 @@ void MPC::initVariables(void)
 
    _yaw_referenceTraj.resize(NUM_OF_YAW_STATES*(_mpcWindow+1), 1);
    _yaw_referenceTraj.setZero();
+
+   /// flags
+   _received_refTraj = false;
+   _state_received = false;
 }
 
 bool 
@@ -1450,6 +1457,9 @@ MPC::initMPCProblem(void)
    _xy_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_XY_STATES*(_mpcWindow+1),1);
    castXYMPCToQPGradient();
    castXYMPCToQPConstraintMatrix();
+   if(!computeXYBounds()) return false; // This requires computing _z_x_opt
+   setXYControlBounds();
+   castXYMPCToQPConstraintBounds();
 
    setZTransitionMatrix(); 
    setZInputMatrix();
@@ -1460,6 +1470,9 @@ MPC::initMPCProblem(void)
    _z_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_Z_STATES*(_mpcWindow+1),1);
    castZMPCToQPGradient();
    castZMPCToQPConstraintMatrix();
+   setZStateBounds();
+   setZControlBounds();
+   castZMPCToQPConstraintBounds();
 
    setYawTransitionMatrix(); 
    setYawInputMatrix();
@@ -1470,19 +1483,13 @@ MPC::initMPCProblem(void)
    _yaw_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_YAW_STATES*(_mpcWindow+1),1);
    castYawMPCToQPGradient();
    castYawMPCToQPConstraintMatrix();
-
-   /////////////// @todo continue modifications from here ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
-   
+   setYawStateBounds();
+   setYawControlBounds();
+   castYawMPCToQPConstraintBounds();   
    
    _current_state.setZero();
    _referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1),1);
    
-   castMPCToQPConstraintMatrix();
-   setStateBounds();   
-   setControlBounds();
-   castMPCToQPConstraintBounds();
    if (!initQPSolver())
    {
       printError("[MPC::initMPCProblem] MPC initialization is not successful.");
@@ -1498,37 +1505,108 @@ MPC::initMPCProblem(void)
    return true;
 }
 
-
 bool 
-MPC::updateQP(void)
+MPC::updateXYQP(void)
 {
+   if(!computeXYBounds()) return false; // @NOTE this requires solving the Z problem to compute _z_x_opt
    // update current drone's position (updates QP linear constraints bounds)
-   updateQPConstraintsBounds();
-   if(!_qpSolver.updateBounds(_lowerBounds, _upperBounds))
+   updateXYQPConstraintsBounds();
+   if(!_xy_qpSolver.updateBounds(_xy_lowerBounds, _xy_upperBounds))
    {
-      printInfo("_qpSolver.updateBounds failed to update bounds");
+      printError("_xy_qpSolver.updateBounds failed to update bounds");
       return false;
    }
    if(_debug)
-      printInfo("[MPCTracker::updateQP] Bounds are updated.");
+      printInfo("[MPCTracker::updateXYQP] Bounds are updated.");
 
    
-   // Update the QP gradient vector using  new _referenceTraj
-   updateQPGradientVector();
-   if(!_qpSolver.updateGradient(_gradient))
+   // Update the QP gradient vector using  new _xy_referenceTraj
+   updateXYQPGradientVector();
+   if(!_xy_qpSolver.updateGradient(_xy_gradient))
    {
-      printInfo("_qpSolver.updateGradient failed to update _gradient");
+      printError("_xy_qpSolver.updateGradient failed to update _gradient");
       return false;
    }
    if(_debug)
-      printInfo("QP gradient is updated");
+      printInfo("XY QP gradient is updated");
 
    return true;
 }
 
-bool MPC::updateMPC(void)
+bool 
+MPC::updateZQP(void)
 {
-   return updateQP();
+   // update current drone's position (updates QP linear constraints bounds)
+   updateZQPConstraintsBounds();
+   if(!_z_qpSolver.updateBounds(_z_lowerBounds, _z_upperBounds))
+   {
+      printError("_z_qpSolver.updateBounds failed to update bounds");
+      return false;
+   }
+   if(_debug)
+      printInfo("[MPCTracker::updateZQP] Bounds are updated.");
+
+   
+   // Update the QP gradient vector using  new _z_referenceTraj
+   updateZQPGradientVector();
+   if(!_z_qpSolver.updateGradient(_z_gradient))
+   {
+      printError("_z_qpSolver.updateGradient failed to update _gradient");
+      return false;
+   }
+   if(_debug)
+      printInfo("Z QP gradient is updated");
+
+   return true;
+}
+
+bool 
+MPC::updateYawQP(void)
+{
+   // update current drone's position (updates QP linear constraints bounds)
+   updateYawQPConstraintsBounds();
+   if(!_yaw_qpSolver.updateBounds(_yaw_lowerBounds, _yaw_upperBounds))
+   {
+      printError("_yaw_qpSolver.updateBounds failed to update bounds");
+      return false;
+   }
+   if(_debug)
+      printInfo("[MPCTracker::updateYawQP] Bounds are updated.");
+
+   
+   // Update the QP gradient vector using  new _yaw_referenceTraj
+   updateYawQPGradientVector();
+   if(!_yaw_qpSolver.updateGradient(_yaw_gradient))
+   {
+      printError("_yaw_qpSolver.updateGradient failed to update _gradient");
+      return false;
+   }
+   if(_debug)
+      printInfo("Yaw QP gradient is updated");
+
+   return true;
+}
+
+/////////////////////// public functions /////////////////////
+
+// bool MPC::updateMPC(void)
+// {
+//    return updateQP();
+// }
+
+bool MPC::updateXYMPC(void)
+{
+   return updateXYQP();
+}
+
+bool MPC::updateZMPC(void)
+{
+   return updateZQP();
+}
+
+bool MPC::updateYawMPC(void)
+{
+   return updateYawQP();
 }
 
 bool 
@@ -1543,21 +1621,28 @@ MPC::mpcLoop(void)
    }
    if(!_state_received)
    {
-      printWarn("[MPC::mpcLoop] Drone state is not received yet. Skipping MPC loop.");
+      printWarn("[MPC::mpcLoop] curent state is not received. Skipping MPC loop.");
+      return false;
+   }
+   if(!_received_refTraj)
+   {
+      printWarn("[MPC::mpcLoop] Reference trajectory is not received. Skipping MPC loop.");
       return false;
    }
 
+   // Solve Z problem first
+   
    // Update gradient and bounds
-   if(!updateQP())
+   if(!updateZQP())
    {
-      printError("[MPC::mpcLoop]Failed to update bounds and gradient");
+      printError("[MPC::mpcLoop] Z - Failed to update bounds and gradient");
       return false;
    }
    
-   // Solve MPC
-   if(!_qpSolver.solve())
+   // Solve MPC, for Z
+   if(!_z_qpSolver.solve())
    {
-      printError("[MPC::mpcLoop] MPC solution is not found");
+      printError("[MPC::mpcLoop] Z -  MPC solution is not found");
       return false;
    }
 
@@ -1567,93 +1652,124 @@ MPC::mpcLoop(void)
    return true;
 }
 
+void 
+MPC::extractXYSolution(void)
+{
+   Eigen::VectorXd QPSolution;
+   if(_debug)
+      printInfo("[MPC::extractXYSolution] Getting optimal solution from _xy_qpSolver");
+   QPSolution = _xy_qpSolver.getSolution();
+
+   // State trajectory, [x(0), x(1), ... , x(N)]
+   _xy_x_opt = QPSolution.block(0, 0, NUM_OF_XY_STATES * (_mpcWindow+1), 1);
+   if(_debug)
+      printInfo("[MPC::extractXYSolution] Extracted _xy_x_opt");
+
+   // Control trajectory, [u(0), u(1), ... , u(N-1)]
+   auto N_x = NUM_OF_XY_STATES * (_mpcWindow+1);
+   auto N_u = NUM_OF_XY_INPUTS*_mpcWindow;
+   _xy_u_opt = QPSolution.block(N_x, 0, N_u, 1);
+
+   // Control solution at t=0, u(0)
+   _xy_u0_opt = _xy_u_opt.segment(0,NUM_OF_XY_INPUTS);
+
+   return;
+}
+
+void 
+MPC::extractZSolution(void)
+{
+   Eigen::VectorXd QPSolution;
+   if(_debug)
+      printInfo("[MPC::extractZSolution] Getting optimal solution from _z_qpSolver");
+   QPSolution = _z_qpSolver.getSolution();
+
+   // State trajectory, [x(0), x(1), ... , x(N)]
+   _z_x_opt = QPSolution.block(0, 0, NUM_OF_Z_STATES * (_mpcWindow+1), 1);
+   if(_debug)
+      printInfo("[MPC::extractZSolution] Extracted _z_x_opt");
+
+   // Control trajectory, [u(0), u(1), ... , u(N-1)]
+   auto N_x = NUM_OF_Z_STATES * (_mpcWindow+1);
+   auto N_u = NUM_OF_Z_INPUTS*_mpcWindow;
+   _z_u_opt = QPSolution.block(N_x, 0, N_u, 1);
+
+   // Control solution at t=0, u(0)
+   _z_u0_opt = _z_u_opt(0);
+
+   return;
+}
+
+void 
+MPC::extractYawSolution(void)
+{
+   Eigen::VectorXd QPSolution;
+   if(_debug)
+      printInfo("[MPC::extractYawSolution] Getting optimal solution from _yaw_qpSolver");
+   QPSolution = _yaw_qpSolver.getSolution();
+
+   // State trajectory, [x(0), x(1), ... , x(N)]
+   _yaw_x_opt = QPSolution.block(0, 0, NUM_OF_YAW_STATES * (_mpcWindow+1), 1);
+   if(_debug)
+      printInfo("[MPC::extractZSolution] Extracted _yaw_x_opt");
+
+   // Control trajectory, [u(0), u(1), ... , u(N-1)]
+   auto N_x = NUM_OF_YAW_STATES * (_mpcWindow+1);
+   auto N_u = NUM_OF_YAW_INPUTS*_mpcWindow;
+   _yaw_u_opt = QPSolution.block(N_x, 0, N_u, 1);
+
+   // Control solution at t=0, u(0)
+   _yaw_u0_opt = _yaw_u_opt(0);
+
+   return;
+}
 
 void 
 MPC::extractSolution(void)
 {
-   Eigen::VectorXd QPSolution;
-   if(_debug)
-      printInfo("[MPC::extractSolution6Dof] Getting optimal solution from _qpSolver");
-   QPSolution = _qpSolver.getSolution();
-
-   // State trajectory, [x(0), x(1), ... , x(N)]
-   _optimal_state_traj = QPSolution.block(0, 0, NUM_OF_STATES * (_mpcWindow+1), 1);
-   if(_debug)
-      printInfo("[MPC::extractSolution6Dof] Computed _optimal_state_traj");
-
-   // Control trajectory, [u(0), u(1), ... , u(N-1)]
-   auto N_x = NUM_OF_STATES * (_mpcWindow+1);
-   auto N_u = NUM_OF_INPUTS*_mpcWindow;
-   _optimal_control_traj = QPSolution.block(N_x, 0, N_u, 1);
-
-   // Control solution at t=0, u(0)
-   _mpc_ctrl_sol = _optimal_control_traj.segment(0,NUM_OF_INPUTS);
-
-   _optimal_traj_px.resize(_mpcWindow+1);
-   _optimal_traj_py.resize(_mpcWindow+1);
-   _optimal_traj_pz.resize(_mpcWindow+1);
-   _optimal_traj_vx.resize(_mpcWindow+1);
-   _optimal_traj_vy.resize(_mpcWindow+1);
-   _optimal_traj_vz.resize(_mpcWindow+1);
-
-   _optimal_traj_ux.resize(_mpcWindow);
-   _optimal_traj_uy.resize(_mpcWindow);
-   _optimal_traj_uz.resize(_mpcWindow);
-
-   _ref_traj_px.resize(_mpcWindow+1);
-   _ref_traj_py.resize(_mpcWindow+1);
-   _ref_traj_pz.resize(_mpcWindow+1);
-   _ref_traj_vx.resize(_mpcWindow+1);
-   _ref_traj_vy.resize(_mpcWindow+1);
-   _ref_traj_vz.resize(_mpcWindow+1);
-
-   for (int i=0; i < _mpcWindow+1; i++)
+   for(int i=0; i < (_mpcWindow+1); i++)
    {
-      _optimal_traj_px(i) = _optimal_state_traj(i*NUM_OF_STATES+0);
-      _optimal_traj_py(i) = _optimal_state_traj(i*NUM_OF_STATES+1);
-      _optimal_traj_pz(i) = _optimal_state_traj(i*NUM_OF_STATES+2);
+      MatX_12STATE x_t; x_t.setZero();
+      x_t << _xy_x_opt.segment(i*NUM_OF_XY_STATES, NUM_OF_XY_STATES),
+               _z_x_opt.segment(i*NUM_OF_Z_STATES, NUM_OF_Z_STATES),
+               _yaw_x_opt.segment(i*NUM_OF_YAW_STATES, NUM_OF_Z_STATES);
+      _x_opt.segment(i*NUM_OF_STATES, NUM_OF_STATES) = x_t;
 
-      _optimal_traj_vx(i) = _optimal_state_traj(i*NUM_OF_STATES+3);
-      _optimal_traj_vy(i) = _optimal_state_traj(i*NUM_OF_STATES+4);
-      _optimal_traj_vz(i) = _optimal_state_traj(i*NUM_OF_STATES+5);
-
-      _ref_traj_px(i) = _referenceTraj(i*NUM_OF_STATES+0, 0);
-      _ref_traj_py(i) = _referenceTraj(i*NUM_OF_STATES+1, 0);
-      _ref_traj_pz(i) = _referenceTraj(i*NUM_OF_STATES+2, 0);
-
-      _ref_traj_vx(i) = _referenceTraj(i*NUM_OF_STATES+3, 0);
-      _ref_traj_vy(i) = _referenceTraj(i*NUM_OF_STATES+4, 0);
-      _ref_traj_vz(i) = _referenceTraj(i*NUM_OF_STATES+5, 0);
-
-      if(i<_mpcWindow)
+      if (i<_mpcWindow)
       {
-         _optimal_traj_ux(i) = _optimal_control_traj(i*NUM_OF_INPUTS+0);
-         _optimal_traj_uy(i) = _optimal_control_traj(i*NUM_OF_INPUTS+1);
-         _optimal_traj_uz(i) = _optimal_control_traj(i*NUM_OF_INPUTS+2);
+         MatU_4INPUTS u_t; u_t.setZero();
+         u_t << _xy_u_opt.segment(i*NUM_OF_XY_INPUTS, NUM_OF_XY_INPUTS),
+                  _z_u_opt.segment(i*NUM_OF_Z_INPUTS, NUM_OF_Z_INPUTS),
+                  _yaw_u_opt.segment(i*NUM_OF_YAW_INPUTS, NUM_OF_Z_INPUTS);
+         _u_opt.segment(i*NUM_OF_INPUTS, NUM_OF_INPUTS) = u_t;
       }
    }
+   if(_debug)
+      printInfo("[MPC::extractSolution] Computed _x_opt and _u_opt");
 
    return;
 }
 
-void 
-MPC::printProblemInfo(void)
-{
-   auto opt_x_l = NUM_OF_STATES*(_mpcWindow+1)+NUM_OF_INPUTS*_mpcWindow; // length of optimization variable
-   auto opt_Ac_l_row = 2*NUM_OF_STATES*(_mpcWindow+1) + NUM_OF_INPUTS*_mpcWindow;// number of constraints in matrix Ac
+// void 
+// MPC::printProblemInfo(void)
+// {
+//    auto opt_x_l = NUM_OF_STATES*(_mpcWindow+1)+NUM_OF_INPUTS*_mpcWindow; // length of optimization variable
+//    auto opt_Ac_l_row = 2*NUM_OF_STATES*(_mpcWindow+1) + NUM_OF_INPUTS*_mpcWindow;// number of constraints in matrix Ac
 
-   auto opt_Ac_size = opt_Ac_l_row * opt_x_l; // Number of elements in Ac
+//    auto opt_Ac_size = opt_Ac_l_row * opt_x_l; // Number of elements in Ac
 
-   printInfo("[MPC::printProblemInfo]: Number of states = %d",NUM_OF_STATES );
-   printInfo("[MPC::printProblemInfo]: Number of inputs = %d",NUM_OF_INPUTS );
-   printInfo("[MPC::printProblemInfo]: Number of MPC steps = %d",_mpcWindow );
-   printInfo("[MPC::printProblemInfo]: Length of MPC horizon = %f seconds",(double)_mpcWindow*_dt );
-   printInfo("[MPC::printProblemInfo]: Number of optimization variables = %d",opt_x_l );
-   printInfo("[MPC::printProblemInfo]: Number constraints = %d", opt_Ac_l_row );
-   printInfo("[MPC::printProblemInfo]: Number of elements in the constraints matrix Ac = %d",opt_Ac_size );
-   return;
-}
+//    printInfo("[MPC::printProblemInfo]: Number of states = %d",NUM_OF_STATES );
+//    printInfo("[MPC::printProblemInfo]: Number of inputs = %d",NUM_OF_INPUTS );
+//    printInfo("[MPC::printProblemInfo]: Number of MPC steps = %d",_mpcWindow );
+//    printInfo("[MPC::printProblemInfo]: Length of MPC horizon = %f seconds",(double)_mpcWindow*_dt );
+//    printInfo("[MPC::printProblemInfo]: Number of optimization variables = %d",opt_x_l );
+//    printInfo("[MPC::printProblemInfo]: Number constraints = %d", opt_Ac_l_row );
+//    printInfo("[MPC::printProblemInfo]: Number of elements in the constraints matrix Ac = %d",opt_Ac_size );
+//    return;
+// }
 
+/////////////// @todo continue modifications from here ////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
 
 void 
 MPC::saveMPCDataToFile(void)
@@ -1718,6 +1834,7 @@ MPC::setReferenceTraj(const Eigen::MatrixXd &v)
       return false;
    }
    _referenceTraj = v;
+   _received_refTraj = true
    return true;
 }
 
