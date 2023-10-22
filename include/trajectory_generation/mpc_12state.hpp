@@ -297,6 +297,11 @@ private:
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   /**
+   * @brief Initialize all variables with dynamic size
+  */
+  void initVariables(void);
+
+  /**
    * @brief Sets the states weight matrix, Q in x^T * Q * x.
    * Uses state_weight_ and updates Q_
    */
@@ -446,7 +451,7 @@ private:
   void updateYawQPConstraintsBounds(void);
 
   /**
-   * @brief Initialize QP solver
+   * @brief Initialize all three QP solver (XY, Z, YAW)
    * 
    * @return True if initialization is successful. False, otherwise.
    */

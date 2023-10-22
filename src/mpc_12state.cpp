@@ -628,8 +628,7 @@ MPC::setYawControlBounds(void)
 void 
 MPC::castXYMPCToQPHessian(void)
 {
-   int h_size = NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
-   _xy_hessian.resize(h_size, h_size);
+   auto h_size = NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow;
    _xy_hessian = Eigen::MatrixXd::Zero(h_size, h_size);
 
    // Add _Q to _hessian
@@ -671,7 +670,6 @@ void
 MPC::castZMPCToQPHessian(void)
 {
    int h_size = NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
-   _z_hessian.resize(h_size, h_size);
    _z_hessian = Eigen::MatrixXd::Zero(h_size, h_size);
 
    // Add _Q to _hessian
@@ -713,7 +711,6 @@ void
 MPC::castYawMPCToQPHessian(void)
 {
    int h_size = NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
-   _yaw_hessian.resize(h_size, h_size);
    _yaw_hessian = Eigen::MatrixXd::Zero(h_size, h_size);
 
    // Add _Q to _hessian
@@ -754,8 +751,6 @@ MPC::castYawMPCToQPHessian(void)
 void 
 MPC::castXYMPCToQPGradient(void)
 {
-   int g_size = NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow;
-   _xy_gradient.resize(g_size);
    _xy_gradient.setZero();
 
    // Populate the gradient vector
@@ -775,9 +770,7 @@ MPC::castXYMPCToQPGradient(void)
 void 
 MPC::castZMPCToQPGradient(void)
 {
-   int g_size = NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow;
-   _xy_gradient.resize(g_size);
-   _xy_gradient.setZero();
+   _z_gradient.setZero();
 
    // Populate the gradient vector
    for(int i=0; i<_mpcWindow+1; i++)
@@ -796,8 +789,6 @@ MPC::castZMPCToQPGradient(void)
 void 
 MPC::castYawMPCToQPGradient(void)
 {
-   int g_size = NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow;
-   _yaw_gradient.resize(g_size);
    _yaw_gradient.setZero();
 
    // Populate the gradient vector
@@ -863,12 +854,6 @@ MPC::updateYawQPGradientVector(void)
 void 
 MPC::castXYMPCToQPConstraintMatrix(void)
 {
-   // Initialize Ac
-   int size_r = 2*NUM_OF_XY_STATES * (_mpcWindow+1) +
-               NUM_OF_XY_INPUTS * _mpcWindow +
-               (NUM_OF_XY_MIXED_VEL_CONST + NUM_OF_XY_MIXED_ACCEL_CONST) * _mpcWindow;
-   int size_c = NUM_OF_XY_STATES * (_mpcWindow+1) + NUM_OF_XY_INPUTS * _mpcWindow;
-   _xy_Ac.resize(size_r, size_c);
    _xy_Ac.setZero();
    //_Ac = Eigen::MatrixXd::Zero(size_r, size_c);
 
@@ -900,7 +885,7 @@ MPC::castXYMPCToQPConstraintMatrix(void)
    auto N_MIX = NUM_OF_XY_MIXED_ACCEL_CONST + NUM_OF_XY_MIXED_VEL_CONST;
    for (int i=0; i < _mpcWindow; i++)
    {
-      // Mixed-velocity contraints
+      // Mixed-velocity contraints (2nd order approximation)
       //sqrt(3)/2 vx + 0.5 vy
       _xy_Ac(2*N_x+N_u + N_MIX*i +0, NUM_OF_XY_STATES *(i+1) + 1) = std::sqrt(3)/2;
       _xy_Ac(2*N_x+N_u + N_MIX*i +0, NUM_OF_XY_STATES *(i+1) + 4) = 0.5;
@@ -917,7 +902,7 @@ MPC::castXYMPCToQPConstraintMatrix(void)
       _xy_Ac(2*N_x+N_u + N_MIX*i +3, NUM_OF_XY_STATES *(i+1) + 1) = -0.5;
       _xy_Ac(2*N_x+N_u + N_MIX*i +3, NUM_OF_XY_STATES *(i+1) + 4) = std::sqrt(3)/2;
 
-      // Mixed-acceleration contraints
+      // Mixed-acceleration contraints (1st order approximation)
       // sqrt(2)/2 ax + sqrt(2)/2 ay
       _xy_Ac(2*N_x+N_u + N_MIX*i +4, NUM_OF_XY_STATES *(i+1) + 2) = std::sqrt(2)/2;
       _xy_Ac(2*N_x+N_u + N_MIX*i +4, NUM_OF_XY_STATES *(i+1) + 5) = std::sqrt(2)/2;
@@ -1102,12 +1087,8 @@ MPC::castXYMPCToQPConstraintBounds(void)
    if(_debug)
       printInfo("XY - Calculated uLowerInequality and uUpperInequality");
 
-   auto size = 2*NUM_OF_XY_STATES*(_mpcWindow+1) + 
-               NUM_OF_XY_INPUTS*_mpcWindow +
-               (NUM_OF_XY_MIXED_ACCEL_CONST+NUM_OF_XY_MIXED_VEL_CONST)*_mpcWindow;
-   // @todo Resizing should be done in the initialization
-   _xy_lowerBounds.resize(size); _xy_lowerBounds.setZero();
-   _xy_upperBounds.resize(size); _xy_upperBounds.setZero();
+   _xy_upperBounds.setZero();
+   _xy_lowerBounds.setZero();
    _xy_lowerBounds << lowerEquality,
                         _xy_current_state,
                         _xy_Min,
@@ -1304,50 +1285,200 @@ MPC::updateYawQPConstraintsBounds(void)
    return;
 }
 
-/////////////// @todo continue modifications from here ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
 bool 
 MPC::initQPSolver(void)
 {
-   printInfo("Initializing QP solver ...");
+   // @WARNING You must initialize all variables (with unkown size) before executing this function!
 
-   _qpSolver.settings()->setVerbosity(_debug);
-   _qpSolver.settings()->setWarmStart(true);
-   // set the initial data of the QP solver
-   _qpSolver.data()->setNumberOfVariables(NUM_OF_STATES*(_mpcWindow+1) + NUM_OF_INPUTS*_mpcWindow);
-   _qpSolver.data()->setNumberOfConstraints(2*NUM_OF_STATES*(_mpcWindow+1) + NUM_OF_INPUTS*_mpcWindow);
-   _hessian_sparse = _hessian.sparseView();
-   _Ac_sparse = _Ac.sparseView();
-   if(!_qpSolver.data()->setHessianMatrix(_hessian_sparse)) return false;
-   if(!_qpSolver.data()->setGradient(_gradient)) return false;
-   if(!_qpSolver.data()->setLinearConstraintsMatrix(_Ac_sparse)) return false;
-   if(!_qpSolver.data()->setLowerBound(_lowerBounds)) return false;
-   if(!_qpSolver.data()->setUpperBound(_upperBounds)) return false;
-
-   if(!_qpSolver.initSolver()) return false;
-
-
+   // XY QP solver
+   printInfo("Initializing XY QP solver ...");
+   _xy_qpSolver.settings()->setVerbosity(_debug);
+   _xy_qpSolver.settings()->setWarmStart(true);
+   _xy_qpSolver.data()->setNumberOfVariables(NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow);
+   _xy_qpSolver.data()->setNumberOfConstraints(2*NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow + (NUM_OF_XY_MIXED_ACCEL_CONST+NUM_OF_XY_MIXED_VEL_CONST)*_mpcWindow);
+   _xy_hessian_sparse = _xy_hessian.sparseView();
+   _xy_Ac_sparse = _xy_Ac.sparseView();
+   if(!_xy_qpSolver.data()->setHessianMatrix(_xy_hessian_sparse)) return false;
+   if(!_xy_qpSolver.data()->setGradient(_xy_gradient)) return false;
+   if(!_xy_qpSolver.data()->setLinearConstraintsMatrix(_xy_Ac_sparse)) return false;
+   if(!_xy_qpSolver.data()->setLowerBound(_xy_lowerBounds)) return false;
+   if(!_xy_qpSolver.data()->setUpperBound(_xy_upperBounds)) return false;
+   if(!_xy_qpSolver.initSolver()) return false;
    if(_debug)
    {
-      printInfo("QP solver is initialized.");
+      printInfo("XY - QP solver is initialized.");
    }
+
+   // Z QP solver
+   printInfo("Initializing Z QP solver ...");
+   _z_qpSolver.settings()->setVerbosity(_debug);
+   _z_qpSolver.settings()->setWarmStart(true);
+   _z_qpSolver.data()->setNumberOfVariables(NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow);
+   _z_qpSolver.data()->setNumberOfConstraints(2*NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow);
+   _z_hessian_sparse = _z_hessian.sparseView();
+   _z_Ac_sparse = _z_Ac.sparseView();
+   if(!_z_qpSolver.data()->setHessianMatrix(_z_hessian_sparse)) return false;
+   if(!_z_qpSolver.data()->setGradient(_z_gradient)) return false;
+   if(!_z_qpSolver.data()->setLinearConstraintsMatrix(_z_Ac_sparse)) return false;
+   if(!_z_qpSolver.data()->setLowerBound(_z_lowerBounds)) return false;
+   if(!_z_qpSolver.data()->setUpperBound(_z_upperBounds)) return false;
+   if(!_z_qpSolver.initSolver()) return false;
+   if(_debug)
+   {
+      printInfo("Z - QP solver is initialized.");
+   }
+
+   // Yaw QP solver
+   printInfo("Initializing Yaw QP solver ...");
+   _yaw_qpSolver.settings()->setVerbosity(_debug);
+   _yaw_qpSolver.settings()->setWarmStart(true);
+   _yaw_qpSolver.data()->setNumberOfVariables(NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow);
+   _yaw_qpSolver.data()->setNumberOfConstraints(2*NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow);
+   _yaw_hessian_sparse = _yaw_hessian.sparseView();
+   _yaw_Ac_sparse = _yaw_Ac.sparseView();
+   if(!_yaw_qpSolver.data()->setHessianMatrix(_yaw_hessian_sparse)) return false;
+   if(!_yaw_qpSolver.data()->setGradient(_yaw_gradient)) return false;
+   if(!_yaw_qpSolver.data()->setLinearConstraintsMatrix(_yaw_Ac_sparse)) return false;
+   if(!_yaw_qpSolver.data()->setLowerBound(_yaw_lowerBounds)) return false;
+   if(!_yaw_qpSolver.data()->setUpperBound(_yaw_upperBounds)) return false;
+   if(!_yaw_qpSolver.initSolver()) return false;
+   if(_debug)
+   {
+      printInfo("Yaw - QP solver is initialized.");
+   }
+
    return true;
 }
 
+void MPC::initVariables(void)
+{
+   _referenceTraj.resize(NUM_OF_STATES*(_mpcWindow+1),1); _referenceTraj.setZero();
+   
+   // xy
+   int size;
+   size = NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow;
+   _xy_gradient.resize(size); _xy_gradient.setZero();
+
+   size = NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
+   _xy_hessian.resize(size, size); _xy_hessian.setZero();
+
+   int size_r = 2*NUM_OF_XY_STATES * (_mpcWindow+1) +
+               NUM_OF_XY_INPUTS * _mpcWindow +
+               (NUM_OF_XY_MIXED_VEL_CONST + NUM_OF_XY_MIXED_ACCEL_CONST) * _mpcWindow;
+   int size_c = NUM_OF_XY_STATES * (_mpcWindow+1) + NUM_OF_XY_INPUTS * _mpcWindow;
+   _xy_Ac.resize(size_r, size_c); _xy_Ac.setZero();
+
+   _xy_Min.resize(NUM_OF_XY_STATES*_mpcWindow); _xy_Max.resize(NUM_OF_XY_STATES*_mpcWindow);
+   _xy_Min.setZero(); _xy_Max.setZero();
+
+   _xy_MixedState_Min.resize((NUM_OF_XY_MIXED_VEL_CONST+NUM_OF_XY_MIXED_ACCEL_CONST)*_mpcWindow);
+   _xy_MixedState_Max.resize((NUM_OF_XY_MIXED_VEL_CONST+NUM_OF_XY_MIXED_ACCEL_CONST)*_mpcWindow);
+   _xy_MixedState_Min.setZero(); _xy_MixedState_Max.setZero();
+
+   size = 2*NUM_OF_XY_STATES*(_mpcWindow+1) + 
+               NUM_OF_XY_INPUTS*_mpcWindow +
+               (NUM_OF_XY_MIXED_ACCEL_CONST+NUM_OF_XY_MIXED_VEL_CONST)*_mpcWindow;
+   _xy_lowerBounds.resize(size); _xy_lowerBounds.setZero();
+   _xy_upperBounds.resize(size); _xy_upperBounds.setZero();
+
+   _xy_x_opt.resize(NUM_OF_XY_STATES*(_mpcWindow+1)); _xy_x_opt.setZero();
+   _xy_u_opt.resize(NUM_OF_XY_INPUTS*_mpcWindow); _xy_u_opt.setZero();
+
+   _xy_referenceTraj.resize(NUM_OF_XY_STATES*(_mpcWindow+1), 1);
+   _xy_referenceTraj.setZero();
+
+   // z
+   size = NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow;
+   _z_gradient.resize(size); _z_gradient.setZero();
+
+   size = NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
+   _z_hessian.resize(size, size); _z_hessian.setZero();
+
+   size_r = 2*NUM_OF_Z_STATES * (_mpcWindow+1) + NUM_OF_Z_INPUTS * _mpcWindow;
+   size_c = NUM_OF_Z_STATES * (_mpcWindow+1) + NUM_OF_Z_INPUTS * _mpcWindow;
+   _z_Ac.resize(size_r, size_c); _z_Ac.setZero();
+
+   _z_Min.resize(NUM_OF_Z_STATES*_mpcWindow); _z_Min.resize(NUM_OF_Z_STATES*_mpcWindow);
+   _z_Min.setZero(); _z_Max.setZero();
+
+   size = 2*NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow;
+   _z_lowerBounds.resize(size); _z_lowerBounds.setZero();
+   _z_upperBounds.resize(size); _z_upperBounds.setZero();
+
+   _z_x_opt.resize(NUM_OF_Z_STATES*(_mpcWindow+1)); _z_x_opt.setZero();
+   _z_u_opt.resize(NUM_OF_Z_INPUTS*_mpcWindow); _z_u_opt.setZero();
+
+   _z_referenceTraj.resize(NUM_OF_Z_STATES*(_mpcWindow+1), 1);
+   _z_referenceTraj.setZero();
+
+   // yaw
+   size = NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow;
+   _yaw_gradient.resize(size); _yaw_gradient.setZero();
+
+   size = NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow; // Length of optimization vector over MPC horizon (_mpcWindow)
+   _yaw_hessian.resize(size, size); _yaw_hessian.setZero();
+
+   size_r = 2*NUM_OF_YAW_STATES * (_mpcWindow+1) + NUM_OF_YAW_INPUTS * _mpcWindow;
+   size_c = NUM_OF_YAW_STATES * (_mpcWindow+1) + NUM_OF_YAW_INPUTS * _mpcWindow;
+   _yaw_Ac.resize(size_r, size_c); _yaw_Ac.setZero();
+
+   _yaw_Min.resize(NUM_OF_YAW_STATES*_mpcWindow); _yaw_Min.resize(NUM_OF_YAW_STATES*_mpcWindow);
+   _yaw_Min.setZero(); _yaw_Max.setZero();
+
+   size = 2*NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow;
+   _yaw_lowerBounds.resize(size); _yaw_lowerBounds.setZero();
+   _yaw_upperBounds.resize(size); _yaw_upperBounds.setZero();
+
+   _yaw_x_opt.resize(NUM_OF_YAW_STATES*(_mpcWindow+1)); _yaw_x_opt.setZero();
+   _yaw_u_opt.resize(NUM_OF_YAW_INPUTS*_mpcWindow); _yaw_u_opt.setZero();
+
+   _yaw_referenceTraj.resize(NUM_OF_YAW_STATES*(_mpcWindow+1), 1);
+   _yaw_referenceTraj.setZero();
+}
 
 bool 
 MPC::initMPCProblem(void)
 {
-   setTransitionMatrix(); 
-   setInputMatrix();
-   setQ();
+   initVariables();
 
-   setR();
-   castMPCToQPHessian();
+   setXYTransitionMatrix(); 
+   setXYInputMatrix();
+   setXYQ();
+   setXYR();
+   castXYMPCToQPHessian();
+   _xy_current_state.setZero();
+   _xy_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_XY_STATES*(_mpcWindow+1),1);
+   castXYMPCToQPGradient();
+   castXYMPCToQPConstraintMatrix();
+
+   setZTransitionMatrix(); 
+   setZInputMatrix();
+   setZQ();
+   setZR();
+   castZMPCToQPHessian();
+   _z_current_state.setZero();
+   _z_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_Z_STATES*(_mpcWindow+1),1);
+   castZMPCToQPGradient();
+   castZMPCToQPConstraintMatrix();
+
+   setYawTransitionMatrix(); 
+   setYawInputMatrix();
+   setYawQ();
+   setYawR();
+   castYawMPCToQPHessian();
+   _yaw_current_state.setZero();
+   _yaw_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_YAW_STATES*(_mpcWindow+1),1);
+   castYawMPCToQPGradient();
+   castYawMPCToQPConstraintMatrix();
+
+   /////////////// @todo continue modifications from here ////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+
+   
+   
    _current_state.setZero();
    _referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1),1);
-   castMPCToQPGradient();
+   
    castMPCToQPConstraintMatrix();
    setStateBounds();   
    setControlBounds();
