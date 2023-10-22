@@ -473,6 +473,8 @@ private:
   bool updateZQP(void);
   bool updateYawQP(void);
 
+  bool computeYawRefTrajectory(void);
+
   /**
   * @brief Extracts MPC solutions, contorl/state trajectories, from QP
   * Updates _state_traj_sol, _control_traj_sol
@@ -608,7 +610,8 @@ bool setYawSmoothInputWeight(double w);
   /**
   * @brief Saves MPC matrices to an CSV file
   */
-  void saveMPCDataToFile(void);
+  // void saveMPCDataToFile(void);
+  void saveMPCSolutionsToFile(void);
 
   /**
    * @brief Sets _referenceTraj
@@ -623,49 +626,54 @@ bool setYawSmoothInputWeight(double w);
   int getNumOfStates(void);
   int getNumOfInputs(void);
 
-  double getXYMaxAccel(void);
-  double getZMaxAccel(void);
-  double getYawMaxAccel(void);
+  // double getXYMaxAccel(void);
+  // double getZMaxAccel(void);
+  // double getYawMaxAccel(void);
 
-  double getXYMaxVel(void);
-  double getZMaxVel(void);
-  double getYawMaxVel(void);
+  // double getXYMaxVel(void);
+  // double getZMaxVel(void);
+  // double getYawMaxVel(void);
 
-  Eigen::MatrixXd& getXYTransitionMatrix(void);
-  Eigen::MatrixXd& getZTransitionMatrix(void);
-  Eigen::MatrixXd& getYawTransitionMatrix(void);
+  Eigen::MatrixXd& getTransitionMatrix(void);
+  // Eigen::MatrixXd& getXYTransitionMatrix(void);
+  // Eigen::MatrixXd& getZTransitionMatrix(void);
+  // Eigen::MatrixXd& getYawTransitionMatrix(void);
 
-  Eigen::MatrixXd& getXYInputMatrix(void);
-  Eigen::MatrixXd& getZInputMatrix(void);
-  Eigen::MatrixXd& getYawInputMatrix(void);
+  Eigen::MatrixXd& getInputMatrix(void);
+  // Eigen::MatrixXd& getXYInputMatrix(void);
+  // Eigen::MatrixXd& getZInputMatrix(void);
+  // Eigen::MatrixXd& getYawInputMatrix(void);
 
-  Eigen::VectorXd& getXYGradient(void);
-  Eigen::VectorXd& getZGradient(void);
-  Eigen::VectorXd& getYawGradient(void);
+  Eigen::VectorXd& getGradient(void);
+  // Eigen::VectorXd& getXYGradient(void);
+  // Eigen::VectorXd& getZGradient(void);
+  // Eigen::VectorXd& getYawGradient(void);
 
-  Eigen::VectorXd& getXYLowerBounds(void);
-  Eigen::VectorXd& getZLowerBounds(void);
-  Eigen::VectorXd& getYawLowerBounds(void);
+  // Eigen::VectorXd& getXYLowerBounds(void);
+  // Eigen::VectorXd& getZLowerBounds(void);
+  // Eigen::VectorXd& getYawLowerBounds(void);
 
-  Eigen::VectorXd& getXYUpperBounds(void);
-  Eigen::VectorXd& getZUpperBounds(void);
-  Eigen::VectorXd& geYawUpperBounds(void);
+  // Eigen::VectorXd& getXYUpperBounds(void);
+  // Eigen::VectorXd& getZUpperBounds(void);
+  // Eigen::VectorXd& geYawUpperBounds(void);
 
-  Eigen::MatrixXd& getXYContraintsMatrix(void);
-  Eigen::MatrixXd& getZContraintsMatrix(void);
-  Eigen::MatrixXd& getYawContraintsMatrix(void);
+  // Eigen::MatrixXd& getXYContraintsMatrix(void);
+  // Eigen::MatrixXd& getZContraintsMatrix(void);
+  // Eigen::MatrixXd& getYawContraintsMatrix(void);
 
-  Eigen::MatrixXd& getXYHessianMatrix(void);
-  Eigen::MatrixXd& getZHessianMatrix(void);
-  Eigen::MatrixXd& getYawHessianMatrix(void);
+  // Eigen::MatrixXd& getXYHessianMatrix(void);
+  // Eigen::MatrixXd& getZHessianMatrix(void);
+  // Eigen::MatrixXd& getYawHessianMatrix(void);
 
-  Eigen::MatrixXd& getXYQ(void);
-  Eigen::MatrixXd& getZQ(void);
-  Eigen::MatrixXd& getYawQ(void);
+  Eigen::MatrixXd& getQ(void);
+  // Eigen::MatrixXd& getXYQ(void);
+  // Eigen::MatrixXd& getZQ(void);
+  // Eigen::MatrixXd& getYawQ(void);
 
-  Eigen::MatrixXd& getXYR(void);
-  Eigen::MatrixXd& getZR(void);
-  Eigen::MatrixXd& getYawR(void);
+  Eigen::MatrixXd& getR(void);
+  // Eigen::MatrixXd& getXYR(void);
+  // Eigen::MatrixXd& getZR(void);
+  // Eigen::MatrixXd& getYawR(void);
 };
 
 #endif // MPC_12STATE_H

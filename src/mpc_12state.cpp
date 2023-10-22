@@ -69,323 +69,7 @@ _save_mpc_data(false)
 
 MPC::~MPC(){return;}
 
-bool
-MPC::setDt(double dt)
-{
-   if(dt >0)
-   {
-      _dt = dt;
-      printInfo("[MPC::setDt] dt = %f", _dt);
-      return true;
-   }
-   else
-   {
-         printError("[MPC::setDt] dt < 0. Defaulting to 0.1");
-         _dt = 0.1;
-         return false;
-   }
-}
 
-void
-MPC::setDebug(bool d)
-{
-   _debug = d;
-   printInfo("Debug = %d", (int) _debug);
-   return;
-}
-
-bool
-MPC::setMPCWindow(int N)
-{
-   if(N>0)
-   {
-      _mpcWindow = N;
-      printInfo("_mpcWindow = %d", _mpcWindow);
-      return true;
-   }
-   else
-   {
-      printError("_mpcWindow < 0. Default to 10");
-      _mpcWindow = 10;
-      return false;
-   }
-}
-
-bool
-MPC::setXYStateWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("xy_state_weight =%f < 0", w);
-      return false;
-   }
-
-   _xy_state_weight = w;
-   return true;
-}
-
-bool
-MPC::setZStateWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("z_state_weight =%f < 0", w);
-      return false;
-   }
-
-   _z_state_weight = w;
-   return true;
-}
-
-bool
-MPC::setYawStateWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("yaw_state_weight =%f < 0", w);
-      return false;
-   }
-
-   _yaw_state_weight = w;
-   return true;
-}
-
-
-bool
-MPC::setXYInputWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("_xy_input_weight = %f < 0", w);
-      return false;
-   }
-
-   _xy_input_weight = w;
-   return true;
-}
-
-bool
-MPC::setZInputWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("_z_input_weight = %f < 0", w);
-      return false;
-   }
-
-   _z_input_weight = w;
-   return true;
-}
-
-bool
-MPC::setYawInputWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("_yaw_input_weight = %f < 0", w);
-      return false;
-   }
-
-   _yaw_input_weight = w;
-   return true;
-}
-
-bool
-MPC::setXYSmoothInputWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("_xy_smooth_input_weight = %f < 0", w);
-      return false;
-   }
-
-   _xy_smooth_input_weight = w;
-   return true;
-}
-
-bool
-MPC::setZSmoothInputWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("_z_smooth_input_weight = %f < 0", w);
-      return false;
-   }
-
-   _z_smooth_input_weight = w;
-   return true;
-}
-
-bool
-MPC::setYawSmoothInputWeight(double w)
-{
-   if (w<0.0)
-   {
-      printError("_yaw_smooth_input_weight = %f < 0", w);
-      return false;
-   }
-
-   _yaw_smooth_input_weight = w;
-   return true;
-}
-
-void
-MPC::enableControlSmoothing(bool b)
-{
-   _enable_control_smoothing = b;
-   printInfo("_enable_control_smoothing = %d", (int)_enable_control_smoothing);
-   return;
-}
-
-bool
-MPC::setAltAboveTarget(double h)
-{
-   if(h<0)
-   {
-      printError("_alt_above_target = %f < 0", h);
-      return false;
-   }
-   _alt_above_target = h;
-   printInfo("_alt_above_target = %f", _alt_above_target);
-   return true;
-}
-
-bool
-MPC::setMinimumAltitude(double h)
-{
-   // if(h<0)
-   // {
-   //    printError("_minAltitude = %f <0", h);
-   //    return false;
-   // }
-   _minAltitude = h;
-   return true;
-}
-
-bool
-MPC::setCurrentState(const MatX_12STATE &x)
-{
-   if(x.size() != NUM_OF_STATES)
-   {
-      printError("State vector size %d != %u", (int) x.size(), NUM_OF_STATES);
-      return false;
-   }
-   _current_state = Eigen::MatrixXd::Zero(NUM_OF_STATES,1);
-   _current_state <<  x;
-   if(_debug)
-      std::cout << "[MPC::setCurrentState] _current_state" << std::endl << _current_state << std::endl;
-   _state_received = true;
-   return true;
-}
-
-
-bool
-MPC::setXYMaxVel(const double v)
-{
-   if(v < 0)
-   {
-      printError("maxXYVel %0.3f < 0. Setting default of 10.0 m/s", v);
-      return false;
-   }
-   _xy_MaxVel = 10.0;
-   return true;
-}
-
-bool
-MPC::setZMaxVel(const double v)
-{
-   if(v < 0)
-   {
-      printError("maxZVel %0.3f < 0. Setting default of 10.0 m/s", v);
-      return false;
-   }
-   _z_MaxVel = 10.0;
-   return true;
-}
-
-bool
-MPC::setYawMaxVel(const double v)
-{
-   if(v < 0)
-   {
-      printError("maxYawVel %0.3f < 0. Setting default of 100.0 rad/s", v);
-      return false;
-   }
-   _yaw_MaxVel = 100.0;
-   return true;
-}
-
-bool
-MPC::setXYMaxAccel(const double a)
-{
-   if(a < 0)
-   {
-      printError("maxXYAccel %0.3f < 0. Setting default of 5.0 m/s/s", a);
-      return false;
-   }
-   _xy_MaxAccel = 5.0;
-   return true;
-}
-
-bool
-MPC::setZMaxAccel(const double a)
-{
-   if(a < 0)
-   {
-      printError("maxZAccel %0.3f < 0. Setting default of 5.0 m/s/s", a);
-      return false;
-   }
-   _z_MaxAccel = 5.0;
-   return true;
-}
-
-bool
-MPC::setYawMaxAccel(const double a)
-{
-   if(a < 0)
-   {
-      printError("maxYawAccel %0.3f < 0. Setting default of 10.0 rad/s/s", a);
-      return false;
-   }
-   _yaw_MaxAccel = 10.0;
-   return true;
-}
-
-bool 
-MPC::setXYMaxJerk(const double j)
-{
-   if(j < 0)
-   {
-      printError("_xy_MaxJerk %0.3f < 0. Setting default of 5.0 m/s/s/s", j);
-      return false;
-   }
-   _xy_MaxJerk = 5.0;
-   return true;
-}
-
-bool 
-MPC::setZMaxJerk(const double j)
-{
-   if(j < 0)
-   {
-      printError("_z_MaxJerk %0.3f < 0. Setting default of 5.0 m/s/s/s", j);
-      return false;
-   }
-   _z_MaxJerk = 5.0;
-   return true;
-}
-
-bool 
-MPC::setYawMaxJerk(const double j)
-{
-   if(j < 0)
-   {
-      printError("_yaw_MaxJerk %0.3f < 0. Setting default of 10.0 rad/s/s/s", j);
-      return false;
-   }
-   _yaw_MaxJerk = 10.0;
-   return true;
-}
 
 void 
 MPC::setXYQ(void)
@@ -837,9 +521,41 @@ MPC::updateZQPGradientVector(void)
    return;
 }
 
+bool 
+MPC::computeYawRefTrajectory(void)
+{
+   // @NOTE Requires solution  _xy_x_opt
+
+   if(_xy_referenceTraj.size() < 1)
+   {
+      printError("[computeYawRefTrajectory] _xy_referenceTraj is empty!\n");
+      return false;
+   }
+
+   if(_xy_x_opt.size() < 1)
+   {
+      printError("[computeYawRefTrajectory] _xy_x_opt is empty!\n");
+      return false;
+   }
+   
+   for (int i=0; i<(_mpcWindow+1); i++)
+   {
+      _yaw_referenceTraj.setZero();
+
+      auto x_target = _xy_referenceTraj(NUM_OF_XY_STATES*i+XY_X_IDX,0);
+      auto x_interceptor = _xy_x_opt(NUM_OF_XY_STATES*i+ XY_X_IDX);
+      auto y_target = _xy_referenceTraj(NUM_OF_XY_STATES*i+XY_Y_IDX,0);
+      auto y_interceptor = _xy_x_opt(NUM_OF_XY_STATES*i+ XY_Y_IDX);
+      _yaw_referenceTraj(NUM_OF_YAW_STATES*i + YAW_Yaw_IDX,0) = std::atan2(y_target - y_interceptor, x_target - x_interceptor);
+   }
+
+   return true;
+}
+
 void 
 MPC::updateYawQPGradientVector(void)
 {
+
    for(int i=0; i<_mpcWindow+1; i++)
    {
       _yaw_gradient.segment(i*NUM_OF_YAW_STATES,NUM_OF_YAW_STATES) = -1.0*_yaw_Q*_yaw_referenceTraj.block(i*NUM_OF_YAW_STATES,0,NUM_OF_YAW_STATES,1);
@@ -1444,71 +1160,13 @@ void MPC::initVariables(void)
 }
 
 bool 
-MPC::initMPCProblem(void)
-{
-   initVariables();
-
-   setXYTransitionMatrix(); 
-   setXYInputMatrix();
-   setXYQ();
-   setXYR();
-   castXYMPCToQPHessian();
-   _xy_current_state.setZero();
-   _xy_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_XY_STATES*(_mpcWindow+1),1);
-   castXYMPCToQPGradient();
-   castXYMPCToQPConstraintMatrix();
-   if(!computeXYBounds()) return false; // This requires computing _z_x_opt
-   setXYControlBounds();
-   castXYMPCToQPConstraintBounds();
-
-   setZTransitionMatrix(); 
-   setZInputMatrix();
-   setZQ();
-   setZR();
-   castZMPCToQPHessian();
-   _z_current_state.setZero();
-   _z_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_Z_STATES*(_mpcWindow+1),1);
-   castZMPCToQPGradient();
-   castZMPCToQPConstraintMatrix();
-   setZStateBounds();
-   setZControlBounds();
-   castZMPCToQPConstraintBounds();
-
-   setYawTransitionMatrix(); 
-   setYawInputMatrix();
-   setYawQ();
-   setYawR();
-   castYawMPCToQPHessian();
-   _yaw_current_state.setZero();
-   _yaw_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_YAW_STATES*(_mpcWindow+1),1);
-   castYawMPCToQPGradient();
-   castYawMPCToQPConstraintMatrix();
-   setYawStateBounds();
-   setYawControlBounds();
-   castYawMPCToQPConstraintBounds();   
-   
-   _current_state.setZero();
-   _referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1),1);
-   
-   if (!initQPSolver())
-   {
-      printError("[MPC::initMPCProblem] MPC initialization is not successful.");
-      return false;
-   }
-
-//   printProblemInfo();
-  _is_MPC_initialized = true;
-
-   // double total_elapsed = (ros::WallTime::now() - startTime).toSec();
-   // ROS_INFO("MPC is initialized in %f second(s).", total_elapsed);
-
-   return true;
-}
-
-bool 
 MPC::updateXYQP(void)
 {
-   if(!computeXYBounds()) return false; // @NOTE this requires solving the Z problem to compute _z_x_opt
+   if(!computeXYBounds())
+   {
+      printError("[updateXYQP] computeXYBounds() returend false");
+      return false; // @NOTE this requires solving the Z problem to compute _z_x_opt
+   }
    // update current drone's position (updates QP linear constraints bounds)
    updateXYQPConstraintsBounds();
    if(!_xy_qpSolver.updateBounds(_xy_lowerBounds, _xy_upperBounds))
@@ -1573,7 +1231,7 @@ MPC::updateYawQP(void)
    if(_debug)
       printInfo("[MPCTracker::updateYawQP] Bounds are updated.");
 
-   
+   if(!computeYawRefTrajectory()) return false;
    // Update the QP gradient vector using  new _yaw_referenceTraj
    updateYawQPGradientVector();
    if(!_yaw_qpSolver.updateGradient(_yaw_gradient))
@@ -1588,6 +1246,69 @@ MPC::updateYawQP(void)
 }
 
 /////////////////////// public functions /////////////////////
+/////////////////////////////////////////////////////////////
+
+bool 
+MPC::initMPCProblem(void)
+{
+   initVariables();
+
+   setXYTransitionMatrix(); 
+   setXYInputMatrix();
+   setXYQ();
+   setXYR();
+   castXYMPCToQPHessian();
+   _xy_current_state.setZero();
+   _xy_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_XY_STATES*(_mpcWindow+1),1);
+   castXYMPCToQPGradient();
+   castXYMPCToQPConstraintMatrix();
+   if(!computeXYBounds()) return false; // This requires computing _z_x_opt
+   setXYControlBounds();
+   castXYMPCToQPConstraintBounds();
+
+   setZTransitionMatrix(); 
+   setZInputMatrix();
+   setZQ();
+   setZR();
+   castZMPCToQPHessian();
+   _z_current_state.setZero();
+   _z_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_Z_STATES*(_mpcWindow+1),1);
+   castZMPCToQPGradient();
+   castZMPCToQPConstraintMatrix();
+   setZStateBounds();
+   setZControlBounds();
+   castZMPCToQPConstraintBounds();
+
+   setYawTransitionMatrix(); 
+   setYawInputMatrix();
+   setYawQ();
+   setYawR();
+   castYawMPCToQPHessian();
+   _yaw_current_state.setZero();
+   _yaw_referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_YAW_STATES*(_mpcWindow+1),1);
+   castYawMPCToQPGradient();
+   castYawMPCToQPConstraintMatrix();
+   setYawStateBounds();
+   setYawControlBounds();
+   castYawMPCToQPConstraintBounds();   
+   
+   _current_state.setZero();
+   _referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1),1);
+   
+   if (!initQPSolver())
+   {
+      printError("[MPC::initMPCProblem] MPC initialization is not successful.");
+      return false;
+   }
+
+//   printProblemInfo();
+  _is_MPC_initialized = true;
+
+   // double total_elapsed = (ros::WallTime::now() - startTime).toSec();
+   // ROS_INFO("MPC is initialized in %f second(s).", total_elapsed);
+
+   return true;
+}
 
 // bool MPC::updateMPC(void)
 // {
@@ -1596,6 +1317,7 @@ MPC::updateYawQP(void)
 
 bool MPC::updateXYMPC(void)
 {
+   // Requires solving the Z problem first
    return updateXYQP();
 }
 
@@ -1606,6 +1328,7 @@ bool MPC::updateZMPC(void)
 
 bool MPC::updateYawMPC(void)
 {
+   // Requires solving the XY problem first
    return updateYawQP();
 }
 
@@ -1630,7 +1353,7 @@ MPC::mpcLoop(void)
       return false;
    }
 
-   // Solve Z problem first
+   // 1- Solve Z problem first
    
    // Update gradient and bounds
    if(!updateZQP())
@@ -1646,6 +1369,44 @@ MPC::mpcLoop(void)
       return false;
    }
 
+   extractZSolution();
+
+   // 2- Solve XY problem
+   // Update gradient and bounds
+   if(!updateXYQP())
+   {
+      printError("[MPC::mpcLoop] XY - Failed to update bounds and gradient");
+      return false;
+   }
+   
+   // Solve MPC, for XY
+   if(!_xy_qpSolver.solve())
+   {
+      printError("[MPC::mpcLoop] XY -  MPC solution is not found");
+      return false;
+   }
+
+   extractXYSolution();
+
+   // 3- Solve Yaw problem
+   // Update gradient and bounds
+   if(!updateYawQP())
+   {
+      printError("[MPC::mpcLoop] Yaw - Failed to update bounds and gradient");
+      return false;
+   }
+   
+   // Solve MPC, for Yaw
+   if(!_yaw_qpSolver.solve())
+   {
+      printError("[MPC::mpcLoop] Yaw -  MPC solution is not found");
+      return false;
+   }
+
+   extractYawSolution();
+
+   // Merge all solutions into
+   // _x_opt, _u_opt
    extractSolution();
 
    // @todo count time ?
@@ -1768,61 +1529,426 @@ MPC::extractSolution(void)
 //    return;
 // }
 
+bool
+MPC::setDt(double dt)
+{
+   if(dt >0)
+   {
+      _dt = dt;
+      printInfo("[MPC::setDt] dt = %f", _dt);
+      return true;
+   }
+   else
+   {
+         printError("[MPC::setDt] dt < 0. Defaulting to 0.1");
+         _dt = 0.1;
+         return false;
+   }
+}
+
+void
+MPC::setDebug(bool d)
+{
+   _debug = d;
+   printInfo("Debug = %d", (int) _debug);
+   return;
+}
+
+bool
+MPC::setMPCWindow(int N)
+{
+   if(N>0)
+   {
+      _mpcWindow = N;
+      printInfo("_mpcWindow = %d", _mpcWindow);
+      return true;
+   }
+   else
+   {
+      printError("_mpcWindow < 0. Default to 10");
+      _mpcWindow = 10;
+      return false;
+   }
+}
+
+bool
+MPC::setXYStateWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("xy_state_weight =%f < 0", w);
+      return false;
+   }
+
+   _xy_state_weight = w;
+   return true;
+}
+
+bool
+MPC::setZStateWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("z_state_weight =%f < 0", w);
+      return false;
+   }
+
+   _z_state_weight = w;
+   return true;
+}
+
+bool
+MPC::setYawStateWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("yaw_state_weight =%f < 0", w);
+      return false;
+   }
+
+   _yaw_state_weight = w;
+   return true;
+}
+
+
+bool
+MPC::setXYInputWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("_xy_input_weight = %f < 0", w);
+      return false;
+   }
+
+   _xy_input_weight = w;
+   return true;
+}
+
+bool
+MPC::setZInputWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("_z_input_weight = %f < 0", w);
+      return false;
+   }
+
+   _z_input_weight = w;
+   return true;
+}
+
+bool
+MPC::setYawInputWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("_yaw_input_weight = %f < 0", w);
+      return false;
+   }
+
+   _yaw_input_weight = w;
+   return true;
+}
+
+bool
+MPC::setXYSmoothInputWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("_xy_smooth_input_weight = %f < 0", w);
+      return false;
+   }
+
+   _xy_smooth_input_weight = w;
+   return true;
+}
+
+bool
+MPC::setZSmoothInputWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("_z_smooth_input_weight = %f < 0", w);
+      return false;
+   }
+
+   _z_smooth_input_weight = w;
+   return true;
+}
+
+bool
+MPC::setYawSmoothInputWeight(double w)
+{
+   if (w<0.0)
+   {
+      printError("_yaw_smooth_input_weight = %f < 0", w);
+      return false;
+   }
+
+   _yaw_smooth_input_weight = w;
+   return true;
+}
+
+void
+MPC::enableControlSmoothing(bool b)
+{
+   _enable_control_smoothing = b;
+   printInfo("_enable_control_smoothing = %d", (int)_enable_control_smoothing);
+   return;
+}
+
+bool
+MPC::setAltAboveTarget(double h)
+{
+   if(h<0)
+   {
+      printError("_alt_above_target = %f < 0", h);
+      return false;
+   }
+   _alt_above_target = h;
+   printInfo("_alt_above_target = %f", _alt_above_target);
+   return true;
+}
+
+bool
+MPC::setMinimumAltitude(double h)
+{
+   // if(h<0)
+   // {
+   //    printError("_minAltitude = %f <0", h);
+   //    return false;
+   // }
+   _minAltitude = h;
+   return true;
+}
+
+bool
+MPC::setCurrentState(const MatX_12STATE &x)
+{
+   if(x.size() != NUM_OF_STATES)
+   {
+      printError("State vector size %d != %u", (int) x.size(), NUM_OF_STATES);
+      return false;
+   }
+   // state: [x, x_dot, x_ddot, y, y_dot, y_ddot, z, z_dot, z_ddot, yaw, yaw_dot, yaw_ddot]
+   // state: [0,   1,      2,    3,   4,    5,    6,    7,    8,     9,   10,        11]
+
+   _current_state.setZero();
+   _current_state <<  x;
+   _xy_current_state.setZero();
+   _xy_current_state = x.head(NUM_OF_XY_STATES);
+   _z_current_state.setZero();
+   _z_current_state = x.segment(NUM_OF_XY_STATES, NUM_OF_Z_STATES);
+   _yaw_current_state.setZero();
+   _yaw_current_state = x.tail(NUM_OF_YAW_STATES);
+
+   if(_debug)
+   {
+      std::cout << "[MPC::setCurrentState] _current_state" << std::endl << _current_state << std::endl;
+      std::cout << "[MPC::setCurrentState] _xy_current_state" << std::endl << _xy_current_state << std::endl;
+      std::cout << "[MPC::setCurrentState] _z_current_state" << std::endl << _z_current_state << std::endl;
+      std::cout << "[MPC::setCurrentState] _yaw_current_state" << std::endl << _yaw_current_state << std::endl;  
+   }
+   _state_received = true;
+   return true;
+}
+
+
+bool
+MPC::setXYMaxVel(const double v)
+{
+   if(v < 0)
+   {
+      printError("maxXYVel %0.3f < 0. Setting default of 10.0 m/s", v);
+      return false;
+   }
+   _xy_MaxVel = 10.0;
+   return true;
+}
+
+bool
+MPC::setZMaxVel(const double v)
+{
+   if(v < 0)
+   {
+      printError("maxZVel %0.3f < 0. Setting default of 10.0 m/s", v);
+      return false;
+   }
+   _z_MaxVel = 10.0;
+   return true;
+}
+
+bool
+MPC::setYawMaxVel(const double v)
+{
+   if(v < 0)
+   {
+      printError("maxYawVel %0.3f < 0. Setting default of 100.0 rad/s", v);
+      return false;
+   }
+   _yaw_MaxVel = 100.0;
+   return true;
+}
+
+bool
+MPC::setXYMaxAccel(const double a)
+{
+   if(a < 0)
+   {
+      printError("maxXYAccel %0.3f < 0. Setting default of 5.0 m/s/s", a);
+      return false;
+   }
+   _xy_MaxAccel = 5.0;
+   return true;
+}
+
+bool
+MPC::setZMaxAccel(const double a)
+{
+   if(a < 0)
+   {
+      printError("maxZAccel %0.3f < 0. Setting default of 5.0 m/s/s", a);
+      return false;
+   }
+   _z_MaxAccel = 5.0;
+   return true;
+}
+
+bool
+MPC::setYawMaxAccel(const double a)
+{
+   if(a < 0)
+   {
+      printError("maxYawAccel %0.3f < 0. Setting default of 10.0 rad/s/s", a);
+      return false;
+   }
+   _yaw_MaxAccel = 10.0;
+   return true;
+}
+
+bool 
+MPC::setXYMaxJerk(const double j)
+{
+   if(j < 0)
+   {
+      printError("_xy_MaxJerk %0.3f < 0. Setting default of 5.0 m/s/s/s", j);
+      return false;
+   }
+   _xy_MaxJerk = 5.0;
+   return true;
+}
+
+bool 
+MPC::setZMaxJerk(const double j)
+{
+   if(j < 0)
+   {
+      printError("_z_MaxJerk %0.3f < 0. Setting default of 5.0 m/s/s/s", j);
+      return false;
+   }
+   _z_MaxJerk = 5.0;
+   return true;
+}
+
+bool 
+MPC::setYawMaxJerk(const double j)
+{
+   if(j < 0)
+   {
+      printError("_yaw_MaxJerk %0.3f < 0. Setting default of 10.0 rad/s/s/s", j);
+      return false;
+   }
+   _yaw_MaxJerk = 10.0;
+   return true;
+}
 /////////////// @todo continue modifications from here ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-void 
-MPC::saveMPCDataToFile(void)
+// void 
+// MPC::saveMPCDataToFile(void)
+// {
+//    //https://eigen.tuxfamily.org/dox/structEigen_1_1IOFormat.html
+//    const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+//    const static Eigen::IOFormat CleanFmt(Eigen::FullPrecision, 0, ", ", "\n", "[", "]");
+//    std::ofstream file(_outputCSVFile);
+//    if (file.is_open())
+//    {
+//       std::string sep= "\n------------------------------------------\n";
+
+//       file << "Initial state, x(0): \n";
+//       file << _current_state.format(CSVFormat) << sep ;
+
+//       file << " A : \n";
+//       file << _A.format(CleanFmt) << sep;
+      
+//       file << "B : \n";
+//       file << _B.format(CleanFmt) << sep;
+
+//       file << "Q : \n";
+//       file << _Q.format(CleanFmt) << sep;
+
+//       file << "R : \n";
+//       file << _R.format(CleanFmt) << sep;
+
+//       file << "Hessian matrix, P: \n";
+//       file << _hessian.format(CleanFmt) << sep;
+
+//       file << "Constarints matrix, Ac: \n";
+//       file << _Ac.format(CleanFmt) << sep;
+
+//       file << "Lower bounds, l: \n";
+//       file << _lowerBounds.format(CleanFmt) << sep;
+
+//       file << "Upper bounds, l: \n";
+//       file << _upperBounds.format(CleanFmt) << sep;
+
+//       file << "gradient, q: \n";
+//       file << _gradient.format(CleanFmt) << sep;
+
+//       file << "Optimal state trajectory, X: \n";
+//       file << _optimal_state_traj.format(CleanFmt) << sep;
+
+//       file << "Optimal control trajectory, U: \n";
+//       file << _optimal_control_traj.format(CleanFmt) << sep;
+
+//       file.close();
+//       printInfo("[MPC::saveMPCDataToFile] Saved MPC solutions to file: %s", _outputCSVFile.c_str());
+//    }
+//    else
+//       printError("[MPCROS::saveMPCDataToFile] Coudl not open file %s", _outputCSVFile.c_str());
+// }
+
+void
+MPC::saveMPCSolutionsToFile(void)
 {
-   //https://eigen.tuxfamily.org/dox/structEigen_1_1IOFormat.html
-   const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-   const static Eigen::IOFormat CleanFmt(Eigen::FullPrecision, 0, ", ", "\n", "[", "]");
    std::ofstream file(_outputCSVFile);
    if (file.is_open())
    {
-      std::string sep= "\n------------------------------------------\n";
-
-      file << "Initial state, x(0): \n";
-      file << _current_state.format(CSVFormat) << sep ;
-
-      file << " A : \n";
-      file << _A.format(CleanFmt) << sep;
-      
-      file << "B : \n";
-      file << _B.format(CleanFmt) << sep;
-
-      file << "Q : \n";
-      file << _Q.format(CleanFmt) << sep;
-
-      file << "R : \n";
-      file << _R.format(CleanFmt) << sep;
-
-      file << "Hessian matrix, P: \n";
-      file << _hessian.format(CleanFmt) << sep;
-
-      file << "Constarints matrix, Ac: \n";
-      file << _Ac.format(CleanFmt) << sep;
-
-      file << "Lower bounds, l: \n";
-      file << _lowerBounds.format(CleanFmt) << sep;
-
-      file << "Upper bounds, l: \n";
-      file << _upperBounds.format(CleanFmt) << sep;
-
-      file << "gradient, q: \n";
-      file << _gradient.format(CleanFmt) << sep;
-
-      file << "Optimal state trajectory, X: \n";
-      file << _optimal_state_traj.format(CleanFmt) << sep;
-
-      file << "Optimal control trajectory, U: \n";
-      file << _optimal_control_traj.format(CleanFmt) << sep;
-
+      file << "x,v_x,a_x,y,v_y,a_y,z,v_z,a_z,yaw,v_yaw,a_yaw,j_x,j_y,j_z,j_yaw\n";
+      for (int i=0; i<(_mpcWindow); i++)
+      {
+         file << _x_opt(NUM_OF_STATES*i + 0) << "," // x
+              << _x_opt(NUM_OF_STATES*i + 1) << "," // vx
+              << _x_opt(NUM_OF_STATES*i + 2) << "," // ax
+              << _x_opt(NUM_OF_STATES*i + 3) << "," // y
+              << _x_opt(NUM_OF_STATES*i + 4) << "," // vy
+              << _x_opt(NUM_OF_STATES*i + 5) << "," // ay
+              << _x_opt(NUM_OF_STATES*i + 6) << "," // z
+              << _x_opt(NUM_OF_STATES*i + 7) << "," // vz
+              << _x_opt(NUM_OF_STATES*i + 8) << "," // az
+              << _x_opt(NUM_OF_STATES*i + 9) << "," // yaw
+              << _x_opt(NUM_OF_STATES*i + 10) << "," // vyaw
+              << _x_opt(NUM_OF_STATES*i + 11) << "," // ayaw
+              << _u_opt(NUM_OF_INPUTS*i + 0) << "," // jx
+              << _u_opt(NUM_OF_INPUTS*i + 1) << "," // jy
+              << _u_opt(NUM_OF_INPUTS*i + 2) << "," // jz
+              << _u_opt(NUM_OF_INPUTS*i + 3) << "n"; // jyaw
+      }
       file.close();
-      printInfo("[MPC::saveMPCDataToFile] Saved MPC solutions to file: %s", _outputCSVFile.c_str());
+      printInfo("[MPC::saveMPCSolutionsToFile] Saved MPC solutions to file: %s", _outputCSVFile.c_str());
    }
    else
-      printError("[MPCROS::saveMPCDataToFile] Coudl not open file %s", _outputCSVFile.c_str());
+      printError("[MPCROS::saveMPCSolutionsToFile] Coudl not open file %s", _outputCSVFile.c_str());
 }
 
 bool
@@ -1830,24 +1956,24 @@ MPC::setReferenceTraj(const Eigen::MatrixXd &v)
 {
    if((int)(_referenceTraj.size()) != (int)(NUM_OF_STATES*(_mpcWindow+1)) )
    {
-      printError("[MPC::set_referenceTraj] input matrix size %d != %d", (int)(_referenceTraj.size()), (int)(NUM_OF_STATES*(_mpcWindow+1)) );
+      printError("[MPC::setReferenceTraj] input matrix size %d != %d", (int)(_referenceTraj.size()), (int)(NUM_OF_STATES*(_mpcWindow+1)) );
       return false;
    }
    _referenceTraj = v;
-   _received_refTraj = true
+   _received_refTraj = true;
    return true;
 }
 
 Eigen::VectorXd
 MPC::getOptimalStateTraj(void)
 {
-   return _optimal_state_traj;
+   return _x_opt;
 }
 
 Eigen::VectorXd
 MPC::getOptimalControlTraj(void)
 {
-   return _optimal_control_traj;
+   return _u_opt;
 }
 
 int
@@ -1862,62 +1988,95 @@ MPC::getNumOfInputs(void)
    return (int)NUM_OF_INPUTS;
 }
 
-Eigen::Vector3d
-MPC::getMaxAccel(void)
+// Eigen::Vector3d
+// MPC::getMaxAccel(void)
+// {
+//    return _maxAccel;
+// }
+
+// Eigen::Vector3d
+// MPC::getMaxVel(void)
+// {
+//    return _maxVel;
+// }
+
+Eigen::MatrixXd& MPC::getTransitionMatrix(void)
 {
-   return _maxAccel;
+   // Create full state transition matrix
+    Eigen::MatrixXd A(_xy_A.rows() + _z_A.rows() + _yaw_A.rows(), _xy_A.cols() + _z_A.cols() + _yaw_A.cols());
+    A.setZero();
+
+    // Place matrices on the diagonal
+    A.block(0, 0, _xy_A.rows(), _xy_A.cols()) = _xy_A;
+    A.block(_xy_A.rows(), _xy_A.cols(), _z_A.rows(), _z_A.cols()) = _z_A;
+    A.block(_xy_A.rows() + _z_A.rows(), _xy_A.cols() + _z_A.cols(), _yaw_A.rows(), _yaw_A.cols()) = _yaw_A;
+   return A;
 }
 
-Eigen::Vector3d
-MPC::getMaxVel(void)
+Eigen::MatrixXd& MPC::getInputMatrix(void)
 {
-   return _maxVel;
-}
+   // Create full state input matrix
+    Eigen::MatrixXd B(_xy_B.rows() + _z_B.rows() + _yaw_B.rows(), _xy_B.cols() + _z_B.cols() + _yaw_B.cols());
+    B.setZero();
 
-Eigen::MatrixXd
-MPC::getTransitionMatrix(void)
-{
-   return _A;
-}
-
-Eigen::MatrixXd
-MPC::getInputMatrix(void)
-{
-   return _B;
+    // Place matrices on the diagonal
+    B.block(0, 0, _xy_B.rows(), _xy_B.cols()) = _xy_B;
+    B.block(_xy_B.rows(), _xy_B.cols(), _z_B.rows(), _z_B.cols()) = _z_B;
+    B.block(_xy_B.rows() + _z_B.rows(), _xy_B.cols() + _z_B.cols(), _yaw_B.rows(), _yaw_B.cols()) = _yaw_B;
+   return B;
 }
 
 
-Eigen::VectorXd MPC::getGradient(void)
+Eigen::VectorXd& MPC::getGradient(void)
 {
-   return  _gradient;
+   Eigen::VectorXd g(_xy_gradient.size() + _z_gradient.size() + _yaw_gradient.size());
+   g << _xy_gradient, _z_gradient, _yaw_gradient;
+   return  g;
 }
 
-Eigen::VectorXd MPC::getLowerBounds(void)
+// Eigen::VectorXd MPC::getLowerBounds(void)
+// {
+//    return _lowerBounds;
+// }
+// Eigen::VectorXd MPC::getUpperBounds(void)
+// {
+//    return _upperBounds;
+// }
+
+// Eigen::MatrixXd MPC::getContraintsMatrix(void)
+// {
+//    return _Ac;
+// }
+
+// Eigen::MatrixXd MPC::getHessianMatrix(void)
+// {
+//    return _hessian;
+// }
+
+Eigen::MatrixXd& MPC::getQ(void)
 {
-   return _lowerBounds;
-}
-Eigen::VectorXd MPC::getUpperBounds(void)
-{
-   return _upperBounds;
+   // Create full state Q matrix
+    Eigen::MatrixXd Q(_xy_Q.rows() + _z_Q.rows() + _yaw_Q.rows(), _xy_Q.cols() + _z_Q.cols() + _yaw_Q.cols());
+    Q.setZero();
+
+    // Place matrices on the diagonal
+    Q.block(0, 0, _xy_Q.rows(), _xy_Q.cols()) = _xy_Q;
+    Q.block(_xy_Q.rows(), _xy_Q.cols(), _z_Q.rows(), _z_Q.cols()) = _z_Q;
+    Q.block(_xy_Q.rows() + _z_Q.rows(), _xy_Q.cols() + _z_Q.cols(), _yaw_Q.rows(), _yaw_Q.cols()) = _yaw_Q;
+   return Q;
 }
 
-Eigen::MatrixXd MPC::getContraintsMatrix(void)
+Eigen::MatrixXd& MPC::getR(void)
 {
-   return _Ac;
-}
+   // Create full state R matrix
+    Eigen::MatrixXd R(_xy_R.rows() + _z_Q.rows() + _yaw_Q.rows(), _xy_Q.cols() + _z_Q.cols() + _yaw_Q.cols());
+    R.setZero();
 
-Eigen::MatrixXd MPC::getHessianMatrix(void)
-{
-   return _hessian;
-}
-Eigen::MatrixXd MPC::getQ(void)
-{
-   return _Q;
-}
-
-Eigen::MatrixXd MPC::getR(void)
-{
-   return _R;
+    // Place matrices on the diagonal
+    R.block(0, 0, _xy_R.rows(), _xy_R.cols()) = _xy_R;
+    R.block(_xy_R.rows(), _xy_R.cols(), _z_R.rows(), _z_R.cols()) = _z_R;
+    R.block(_xy_R.rows() + _z_R.rows(), _xy_R.cols() + _z_R.cols(), _yaw_R.rows(), _yaw_R.cols()) = _yaw_R;
+   return R;
 }
 
 void MPC::setOutputFilePath(std::string path)
