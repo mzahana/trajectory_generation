@@ -754,7 +754,7 @@ bool MPC::computeXYBounds(void)
          _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_VY_IDX, 0) = _xy_MaxVel; // upper bound on vy
 
          // Mixed state velocity bounds
-         _xy_MixedState_Max.block(s*i,0,NUM_OF_XY_MIXED_VEL_CONST,1) = _xy_MaxVel*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_VEL_CONST,1);
+         _xy_MixedState_Max.block(s*(i-1),0,NUM_OF_XY_MIXED_VEL_CONST,1) = _xy_MaxVel*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_VEL_CONST,1);
       }
       else // ascending, v_z(t) > 0
       {
@@ -770,7 +770,7 @@ bool MPC::computeXYBounds(void)
       }
 
       // Mixed state acceleration bounds
-         _xy_MixedState_Max.block(s*(i-1)+NUM_OF_XY_MIXED_VEL_CONST,0, NUM_OF_XY_MIXED_ACCEL_CONST,1) = _xy_MaxAccel*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_ACCEL_CONST,1);
+      _xy_MixedState_Max.block(s*(i-1)+NUM_OF_XY_MIXED_VEL_CONST,0, NUM_OF_XY_MIXED_ACCEL_CONST,1) = _xy_MaxAccel*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_ACCEL_CONST,1);
 
    }
 
@@ -1787,9 +1787,10 @@ MPC::setXYMaxVel(const double v)
    if(v < 0)
    {
       printError("maxXYVel %0.3f < 0. Setting default of 10.0 m/s", v);
+      _xy_MaxVel = 10.0;
       return false;
    }
-   _xy_MaxVel = 10.0;
+   _xy_MaxVel = v;
    return true;
 }
 
@@ -1799,9 +1800,10 @@ MPC::setZMaxVel(const double v)
    if(v < 0)
    {
       printError("maxZVel %0.3f < 0. Setting default of 10.0 m/s", v);
+      _z_MaxVel = 10.0;
       return false;
    }
-   _z_MaxVel = 10.0;
+   _z_MaxVel = v;
    return true;
 }
 
@@ -1811,9 +1813,10 @@ MPC::setYawMaxVel(const double v)
    if(v < 0)
    {
       printError("maxYawVel %0.3f < 0. Setting default of 100.0 rad/s", v);
+      _yaw_MaxVel = 100.0;
       return false;
    }
-   _yaw_MaxVel = 100.0;
+   _yaw_MaxVel = v;
    return true;
 }
 
@@ -1823,9 +1826,10 @@ MPC::setXYMaxAccel(const double a)
    if(a < 0)
    {
       printError("maxXYAccel %0.3f < 0. Setting default of 5.0 m/s/s", a);
+      _xy_MaxAccel = 5.0;
       return false;
    }
-   _xy_MaxAccel = 5.0;
+   _xy_MaxAccel = a;
    return true;
 }
 
@@ -1835,9 +1839,10 @@ MPC::setZMaxAccel(const double a)
    if(a < 0)
    {
       printError("maxZAccel %0.3f < 0. Setting default of 5.0 m/s/s", a);
+      _z_MaxAccel = 5.0;
       return false;
    }
-   _z_MaxAccel = 5.0;
+   _z_MaxAccel = a;
    return true;
 }
 
@@ -1847,9 +1852,10 @@ MPC::setYawMaxAccel(const double a)
    if(a < 0)
    {
       printError("maxYawAccel %0.3f < 0. Setting default of 10.0 rad/s/s", a);
+      _yaw_MaxAccel = 100.0;
       return false;
    }
-   _yaw_MaxAccel = 10.0;
+   _yaw_MaxAccel = a;
    return true;
 }
 
@@ -1859,9 +1865,10 @@ MPC::setXYMaxJerk(const double j)
    if(j < 0)
    {
       printError("_xy_MaxJerk %0.3f < 0. Setting default of 5.0 m/s/s/s", j);
+      _xy_MaxJerk = 5.0;
       return false;
    }
-   _xy_MaxJerk = 5.0;
+   _xy_MaxJerk = j;
    return true;
 }
 
@@ -1871,9 +1878,10 @@ MPC::setZMaxJerk(const double j)
    if(j < 0)
    {
       printError("_z_MaxJerk %0.3f < 0. Setting default of 5.0 m/s/s/s", j);
+      _z_MaxJerk = 5.0;
       return false;
    }
-   _z_MaxJerk = 5.0;
+   _z_MaxJerk = j;
    return true;
 }
 
@@ -1882,14 +1890,13 @@ MPC::setYawMaxJerk(const double j)
 {
    if(j < 0)
    {
-      printError("_yaw_MaxJerk %0.3f < 0. Setting default of 10.0 rad/s/s/s", j);
+      printError("_yaw_MaxJerk %0.3f < 0. Setting default of 100.0 rad/s/s/s", j);
+      _yaw_MaxJerk = 100.0;
       return false;
    }
-   _yaw_MaxJerk = 10.0;
+   _yaw_MaxJerk = j;
    return true;
 }
-/////////////// @todo continue modifications from here ////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
 
 // void 
 // MPC::saveMPCDataToFile(void)
