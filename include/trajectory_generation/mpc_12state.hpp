@@ -299,9 +299,6 @@ private:
   OsqpEigen::Solver     _z_qpSolver;              /** Z - Object of the quadratic program solver */
   OsqpEigen::Solver     _yaw_qpSolver;              /** YAW - Object of the quadratic program solver */
 
-  ///////////////////////////// @ todo continue modifications from here /////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////////////////////////
-
   /**
    * @brief Initialize all variables with dynamic size
   */
@@ -311,7 +308,7 @@ private:
    * @brief Sets the states weight matrix, Q in x^T * Q * x.
    * Uses state_weight_ and updates Q_
    */
-  void setXYQ(void);
+  // void setQ(void);
 
   void setZQ(void);
   void setXYQ(void);

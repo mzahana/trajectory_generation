@@ -30,6 +30,17 @@ target_include_directories(mpc_6dof_lib
 ament_target_dependencies(mpc_6dof_lib Eigen3)
 target_link_libraries(mpc_6dof_lib OsqpEigen::OsqpEigen osqp::osqp)
 
+#
+# mpc_12state.cpp
+#
+add_library(mpc_12state_lib src/mpc_12state.cpp)
+target_include_directories(mpc_12state_lib
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+ament_target_dependencies(mpc_12state_lib Eigen3)
+target_link_libraries(mpc_12state_lib OsqpEigen::OsqpEigen osqp::osqp)
 
 #
 # mpc_ros.cpp
@@ -78,7 +89,7 @@ target_link_libraries(test_mpc_6dof
 
 # Install targets
 install(
-  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof
+  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )
