@@ -631,17 +631,17 @@ bool setYawSmoothInputWeight(double w);
   // double getZMaxVel(void);
   // double getYawMaxVel(void);
 
-  Eigen::MatrixXd& getTransitionMatrix(void);
+  Eigen::MatrixXd getTransitionMatrix(void);
   // Eigen::MatrixXd& getXYTransitionMatrix(void);
   // Eigen::MatrixXd& getZTransitionMatrix(void);
   // Eigen::MatrixXd& getYawTransitionMatrix(void);
 
-  Eigen::MatrixXd& getInputMatrix(void);
+  Eigen::MatrixXd getInputMatrix(void);
   // Eigen::MatrixXd& getXYInputMatrix(void);
   // Eigen::MatrixXd& getZInputMatrix(void);
   // Eigen::MatrixXd& getYawInputMatrix(void);
 
-  Eigen::VectorXd& getGradient(void);
+  Eigen::VectorXd getGradient(void);
   // Eigen::VectorXd& getXYGradient(void);
   // Eigen::VectorXd& getZGradient(void);
   // Eigen::VectorXd& getYawGradient(void);
@@ -662,12 +662,12 @@ bool setYawSmoothInputWeight(double w);
   // Eigen::MatrixXd& getZHessianMatrix(void);
   // Eigen::MatrixXd& getYawHessianMatrix(void);
 
-  Eigen::MatrixXd& getQ(void);
+  Eigen::MatrixXd getQ(void);
   // Eigen::MatrixXd& getXYQ(void);
   // Eigen::MatrixXd& getZQ(void);
   // Eigen::MatrixXd& getYawQ(void);
 
-  Eigen::MatrixXd& getR(void);
+  Eigen::MatrixXd getR(void);
   // Eigen::MatrixXd& getXYR(void);
   // Eigen::MatrixXd& getZR(void);
   // Eigen::MatrixXd& getYawR(void);

@@ -767,16 +767,19 @@ bool MPC::computeXYBounds(void)
          _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_VY_IDX, 0) = v_hmax_t; // upper bound on vy
 
          // Mixed state velocity bounds
-         _xy_MixedState_Max.block(s*i,0,NUM_OF_XY_MIXED_VEL_CONST,1) = v_hmax_t*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_VEL_CONST,1);
+         _xy_MixedState_Max.block(s*(i-1),0,NUM_OF_XY_MIXED_VEL_CONST,1) = v_hmax_t*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_VEL_CONST,1);
       }
 
       // Mixed state acceleration bounds
-         _xy_MixedState_Max.block(s*i+NUM_OF_XY_MIXED_VEL_CONST,0, NUM_OF_XY_MIXED_ACCEL_CONST,1) = _xy_MaxAccel*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_ACCEL_CONST,1);
+         _xy_MixedState_Max.block(s*(i-1)+NUM_OF_XY_MIXED_VEL_CONST,0, NUM_OF_XY_MIXED_ACCEL_CONST,1) = _xy_MaxAccel*Eigen::MatrixXd::Ones(NUM_OF_XY_MIXED_ACCEL_CONST,1);
 
    }
 
    _xy_Min = -1.0*_xy_Max;
    _xy_MixedState_Min = -1.0* _xy_MixedState_Max;
+
+   if (_debug)
+      printInfo("[MPC::computeXYBounds] DONE computing XY bounds");
 
    return true;
 }
@@ -1069,9 +1072,15 @@ MPC::initQPSolver(void)
 
 void MPC::initVariables(void)
 {
+   if(_debug)
+      printInfo("[MPC::initVariables] Initializing MPC variables");
+
    _referenceTraj.resize(NUM_OF_STATES*(_mpcWindow+1),1); _referenceTraj.setZero();
    _x_opt.resize(NUM_OF_STATES*(_mpcWindow+1)); _x_opt.setZero();
    _u_opt.resize(NUM_OF_INPUTS*_mpcWindow); _u_opt.setZero();
+
+   if(_debug)
+      printInfo("[MPC::initVariables] DONE Initializing _referenceTraj, _x_opt, _u_opt");
    
    // xy
    int size;
@@ -1106,6 +1115,9 @@ void MPC::initVariables(void)
    _xy_referenceTraj.resize(NUM_OF_XY_STATES*(_mpcWindow+1), 1);
    _xy_referenceTraj.setZero();
 
+   if(_debug)
+      printInfo("[MPC::initVariables] DONE Initializing XY MPC variables");
+
    // z
    size = NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow;
    _z_gradient.resize(size); _z_gradient.setZero();
@@ -1117,7 +1129,6 @@ void MPC::initVariables(void)
    size_c = NUM_OF_Z_STATES * (_mpcWindow+1) + NUM_OF_Z_INPUTS * _mpcWindow;
    _z_Ac.resize(size_r, size_c); _z_Ac.setZero();
 
-   _z_Min.resize(NUM_OF_Z_STATES*_mpcWindow); _z_Min.resize(NUM_OF_Z_STATES*_mpcWindow);
    _z_Min.setZero(); _z_Max.setZero();
 
    size = 2*NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow;
@@ -1130,6 +1141,9 @@ void MPC::initVariables(void)
    _z_referenceTraj.resize(NUM_OF_Z_STATES*(_mpcWindow+1), 1);
    _z_referenceTraj.setZero();
 
+   if(_debug)
+      printInfo("[MPC::initVariables] DONE Initializing Z MPC variables");
+
    // yaw
    size = NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow;
    _yaw_gradient.resize(size); _yaw_gradient.setZero();
@@ -1141,7 +1155,6 @@ void MPC::initVariables(void)
    size_c = NUM_OF_YAW_STATES * (_mpcWindow+1) + NUM_OF_YAW_INPUTS * _mpcWindow;
    _yaw_Ac.resize(size_r, size_c); _yaw_Ac.setZero();
 
-   _yaw_Min.resize(NUM_OF_YAW_STATES*_mpcWindow); _yaw_Min.resize(NUM_OF_YAW_STATES*_mpcWindow);
    _yaw_Min.setZero(); _yaw_Max.setZero();
 
    size = 2*NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow;
@@ -1154,9 +1167,15 @@ void MPC::initVariables(void)
    _yaw_referenceTraj.resize(NUM_OF_YAW_STATES*(_mpcWindow+1), 1);
    _yaw_referenceTraj.setZero();
 
+   if(_debug)
+      printInfo("[MPC::initVariables] DONE Initializing Yaw MPC variables");
+
    /// flags
    _received_refTraj = false;
    _state_received = false;
+
+   if(_debug)
+      printInfo("[MPC::initVariables] DONE Initializing MPC variables");
 }
 
 bool 
@@ -1266,6 +1285,9 @@ MPC::initMPCProblem(void)
    setXYControlBounds();
    castXYMPCToQPConstraintBounds();
 
+   if(_debug)
+      printInfo("[MPC::initMPCProblem] Initialized XY MPC data");
+
    setZTransitionMatrix(); 
    setZInputMatrix();
    setZQ();
@@ -1279,6 +1301,9 @@ MPC::initMPCProblem(void)
    setZControlBounds();
    castZMPCToQPConstraintBounds();
 
+   if(_debug)
+      printInfo("[MPC::initMPCProblem] Initialized Z MPC data");
+
    setYawTransitionMatrix(); 
    setYawInputMatrix();
    setYawQ();
@@ -1290,7 +1315,10 @@ MPC::initMPCProblem(void)
    castYawMPCToQPConstraintMatrix();
    setYawStateBounds();
    setYawControlBounds();
-   castYawMPCToQPConstraintBounds();   
+   castYawMPCToQPConstraintBounds();
+
+   if(_debug)
+      printInfo("[MPC::initMPCProblem] Initialized Yaw MPC data");
    
    _current_state.setZero();
    _referenceTraj = Eigen::MatrixXd::Zero(NUM_OF_STATES*(_mpcWindow+1),1);
@@ -1942,7 +1970,7 @@ MPC::saveMPCSolutionsToFile(void)
               << _u_opt(NUM_OF_INPUTS*i + 0) << "," // jx
               << _u_opt(NUM_OF_INPUTS*i + 1) << "," // jy
               << _u_opt(NUM_OF_INPUTS*i + 2) << "," // jz
-              << _u_opt(NUM_OF_INPUTS*i + 3) << "n"; // jyaw
+              << _u_opt(NUM_OF_INPUTS*i + 3) << "\n"; // jyaw
       }
       file.close();
       printInfo("[MPC::saveMPCSolutionsToFile] Saved MPC solutions to file: %s", _outputCSVFile.c_str());
@@ -1960,6 +1988,24 @@ MPC::setReferenceTraj(const Eigen::MatrixXd &v)
       return false;
    }
    _referenceTraj = v;
+
+   for (int i=0; i<(_mpcWindow+1); i++)
+   {
+      _xy_referenceTraj(NUM_OF_XY_STATES*i + XY_X_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 0, 0);
+      _xy_referenceTraj(NUM_OF_XY_STATES*i + XY_VX_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 1, 0);
+      _xy_referenceTraj(NUM_OF_XY_STATES*i + XY_AX_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 2, 0);
+      _xy_referenceTraj(NUM_OF_XY_STATES*i + XY_Y_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 3, 0);
+      _xy_referenceTraj(NUM_OF_XY_STATES*i + XY_VY_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 4, 0);
+      _xy_referenceTraj(NUM_OF_XY_STATES*i + XY_AY_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 5, 0);
+
+      _z_referenceTraj(NUM_OF_Z_STATES*i + Z_Z_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 6, 0);
+      _z_referenceTraj(NUM_OF_Z_STATES*i + Z_VZ_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 7, 0);
+      _z_referenceTraj(NUM_OF_Z_STATES*i + Z_AZ_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 8, 0);
+
+      _yaw_referenceTraj(NUM_OF_YAW_STATES*i + YAW_Yaw_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 9, 0);
+      _yaw_referenceTraj(NUM_OF_YAW_STATES*i + YAW_VYaw_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 10, 0);
+      _yaw_referenceTraj(NUM_OF_YAW_STATES*i + YAW_AYaw_IDX, 0) = _referenceTraj(NUM_OF_STATES*i + 11, 0);
+   }
    _received_refTraj = true;
    return true;
 }
@@ -2000,7 +2046,7 @@ MPC::getNumOfInputs(void)
 //    return _maxVel;
 // }
 
-Eigen::MatrixXd& MPC::getTransitionMatrix(void)
+Eigen::MatrixXd MPC::getTransitionMatrix(void)
 {
    // Create full state transition matrix
     Eigen::MatrixXd A(_xy_A.rows() + _z_A.rows() + _yaw_A.rows(), _xy_A.cols() + _z_A.cols() + _yaw_A.cols());
@@ -2013,7 +2059,7 @@ Eigen::MatrixXd& MPC::getTransitionMatrix(void)
    return A;
 }
 
-Eigen::MatrixXd& MPC::getInputMatrix(void)
+Eigen::MatrixXd MPC::getInputMatrix(void)
 {
    // Create full state input matrix
     Eigen::MatrixXd B(_xy_B.rows() + _z_B.rows() + _yaw_B.rows(), _xy_B.cols() + _z_B.cols() + _yaw_B.cols());
@@ -2027,7 +2073,7 @@ Eigen::MatrixXd& MPC::getInputMatrix(void)
 }
 
 
-Eigen::VectorXd& MPC::getGradient(void)
+Eigen::VectorXd MPC::getGradient(void)
 {
    Eigen::VectorXd g(_xy_gradient.size() + _z_gradient.size() + _yaw_gradient.size());
    g << _xy_gradient, _z_gradient, _yaw_gradient;
@@ -2053,7 +2099,7 @@ Eigen::VectorXd& MPC::getGradient(void)
 //    return _hessian;
 // }
 
-Eigen::MatrixXd& MPC::getQ(void)
+Eigen::MatrixXd MPC::getQ(void)
 {
    // Create full state Q matrix
     Eigen::MatrixXd Q(_xy_Q.rows() + _z_Q.rows() + _yaw_Q.rows(), _xy_Q.cols() + _z_Q.cols() + _yaw_Q.cols());
@@ -2066,7 +2112,7 @@ Eigen::MatrixXd& MPC::getQ(void)
    return Q;
 }
 
-Eigen::MatrixXd& MPC::getR(void)
+Eigen::MatrixXd MPC::getR(void)
 {
    // Create full state R matrix
     Eigen::MatrixXd R(_xy_R.rows() + _z_Q.rows() + _yaw_Q.rows(), _xy_Q.cols() + _z_Q.cols() + _yaw_Q.cols());
