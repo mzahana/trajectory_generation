@@ -25,7 +25,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  double state_w = 800.0;
+  double state_w = 7000.0;
   printInfo("Setting state weight (for xy_Q matrix) to %f", state_w);
   if(!mpc->setXYStateWeight(state_w))
   {
@@ -33,7 +33,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  state_w = 800.0;
+  state_w = 7000.0;
   printInfo("Setting state weight (for z_Q matrix) to %f", state_w);
   if(!mpc->setZStateWeight(state_w))
   {
@@ -41,7 +41,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  state_w = 1000.0;
+  state_w = 7000.0;
   printInfo("Setting state weight (for yaw_Q matrix) to %f", state_w);
   if(!mpc->setYawStateWeight(state_w))
   {
@@ -65,7 +65,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  input_w = 0.01;
+  input_w = 0.1;
   printInfo("Setting Yaw input weight (for yaw_R matrix) to %f", input_w);
   if(!mpc->setYawInputWeight(input_w))
   {
@@ -87,7 +87,7 @@ int main(int argc, char * argv[])
     printError("Could not set vertical max. velocity");
   }
 
-  maxVel=200.0;
+  maxVel=120.0;
   printInfo(" Setting max. yaw speed to %0.2f rad/s", maxVel);
   if(!mpc->setYawMaxVel(maxVel))
   {
@@ -101,35 +101,35 @@ int main(int argc, char * argv[])
     printError("Could not set max. horizontal acceleration");
   }
 
-  maxAccel=20.0;
+  maxAccel=18.0;
   printInfo(" Setting max. vertical acceleration to %0.2f m/s/s", maxAccel);
   if(!mpc->setZMaxAccel(maxAccel))
   {
     printError("Could not set max. vertical acceleration");
   }
 
-  maxAccel=100.0;
+  maxAccel=200.0;
   printInfo(" Setting max. yaw acceleration to %0.2f m/s/s", maxAccel);
   if(!mpc->setYawMaxAccel(maxAccel))
   {
     printError("Could not set max. yaw acceleration");
   }
   
-  double maxJerk=10.0;
+  double maxJerk=50.0;
   printInfo(" Setting max. horizontal jerk to %0.2f m/s/s/s", maxJerk);
   if(!mpc->setXYMaxJerk(maxJerk))
   {
     printError("Could not set max. horizontal jerk");
   }
 
-  maxJerk=10.0;
+  maxJerk=50.0;
   printInfo(" Setting max. vertical jerk to %0.2f m/s/s/s", maxJerk);
   if(!mpc->setZMaxJerk(maxJerk))
   {
     printError("Could not set max. vertical jerk");
   }
 
-  maxJerk=200.0;
+  maxJerk=400.0;
   printInfo(" Setting max. yaw jerk to %0.2f m/s/s/s", maxJerk);
   if(!mpc->setYawMaxJerk(maxJerk))
   {
