@@ -538,10 +538,9 @@ MPC::computeYawRefTrajectory(void)
       return false;
    }
    
+   _yaw_referenceTraj.setZero();
    for (int i=0; i<(_mpcWindow+1); i++)
    {
-      _yaw_referenceTraj.setZero();
-
       auto x_target = _xy_referenceTraj(NUM_OF_XY_STATES*i+XY_X_IDX,0);
       auto x_interceptor = _xy_x_opt(NUM_OF_XY_STATES*i+ XY_X_IDX);
       auto y_target = _xy_referenceTraj(NUM_OF_XY_STATES*i+XY_Y_IDX,0);
@@ -1946,39 +1945,6 @@ MPC::setYawMaxJerk(const double j)
 //       printError("[MPCROS::saveMPCDataToFile] Coudl not open file %s", _outputCSVFile.c_str());
 // }
 
-void
-MPC::saveMPCSolutionsToFile(void)
-{
-   std::ofstream file(_outputCSVFile);
-   if (file.is_open())
-   {
-      file << "x,v_x,a_x,y,v_y,a_y,z,v_z,a_z,yaw,v_yaw,a_yaw,j_x,j_y,j_z,j_yaw\n";
-      for (int i=0; i<(_mpcWindow); i++)
-      {
-         file << _x_opt(NUM_OF_STATES*i + 0) << "," // x
-              << _x_opt(NUM_OF_STATES*i + 1) << "," // vx
-              << _x_opt(NUM_OF_STATES*i + 2) << "," // ax
-              << _x_opt(NUM_OF_STATES*i + 3) << "," // y
-              << _x_opt(NUM_OF_STATES*i + 4) << "," // vy
-              << _x_opt(NUM_OF_STATES*i + 5) << "," // ay
-              << _x_opt(NUM_OF_STATES*i + 6) << "," // z
-              << _x_opt(NUM_OF_STATES*i + 7) << "," // vz
-              << _x_opt(NUM_OF_STATES*i + 8) << "," // az
-              << _x_opt(NUM_OF_STATES*i + 9) << "," // yaw
-              << _x_opt(NUM_OF_STATES*i + 10) << "," // vyaw
-              << _x_opt(NUM_OF_STATES*i + 11) << "," // ayaw
-              << _u_opt(NUM_OF_INPUTS*i + 0) << "," // jx
-              << _u_opt(NUM_OF_INPUTS*i + 1) << "," // jy
-              << _u_opt(NUM_OF_INPUTS*i + 2) << "," // jz
-              << _u_opt(NUM_OF_INPUTS*i + 3) << "\n"; // jyaw
-      }
-      file.close();
-      printInfo("[MPC::saveMPCSolutionsToFile] Saved MPC solutions to file: %s", _outputCSVFile.c_str());
-   }
-   else
-      printError("[MPCROS::saveMPCSolutionsToFile] Coudl not open file %s", _outputCSVFile.c_str());
-}
-
 bool
 MPC::setReferenceTraj(const Eigen::MatrixXd &v)
 {
@@ -2128,4 +2094,68 @@ Eigen::MatrixXd MPC::getR(void)
 void MPC::setOutputFilePath(std::string path)
 {
    _outputCSVFile = path;
+}
+
+void
+MPC::saveMPCSolutionsToFile(void)
+{
+   std::ofstream file(_outputCSVFile);
+   if (file.is_open())
+   {
+      file << "time,x,v_x,a_x,y,v_y,a_y,z,v_z,a_z,yaw,v_yaw,a_yaw,j_x,j_y,j_z,j_yaw,des_x,des_vx,des_ax,des_y,des_vy,des_ay,des_z,des_vz,des_az,des_yaw,des_v_yaw,des_a_yaw\n";
+      file << "0.0";// first time stamp
+      // Initial state
+      for (int i=0; i<NUM_OF_STATES; i++)
+      {
+         file << "," <<_current_state(i);
+      }
+      // dummy numbers for input at time=0
+      for (int i=0; i<NUM_OF_INPUTS; i++)
+      {
+         file << "," << "0.0";
+      }
+      for (int i=0; i<NUM_OF_STATES; i++)
+      {
+         file << "," <<_referenceTraj(i);
+      }
+      file << "\n";
+      
+      // optimal states/inputs & reference trajectory
+      for (int i=0; i<(_mpcWindow); i++)
+      {
+         file << (i+1)*_dt << "," // time
+              << _x_opt(NUM_OF_STATES*i + 0) << "," // x
+              << _x_opt(NUM_OF_STATES*i + 1) << "," // vx
+              << _x_opt(NUM_OF_STATES*i + 2) << "," // ax
+              << _x_opt(NUM_OF_STATES*i + 3) << "," // y
+              << _x_opt(NUM_OF_STATES*i + 4) << "," // vy
+              << _x_opt(NUM_OF_STATES*i + 5) << "," // ay
+              << _x_opt(NUM_OF_STATES*i + 6) << "," // z
+              << _x_opt(NUM_OF_STATES*i + 7) << "," // vz
+              << _x_opt(NUM_OF_STATES*i + 8) << "," // az
+              << _x_opt(NUM_OF_STATES*i + 9) << "," // yaw
+              << _x_opt(NUM_OF_STATES*i + 10) << "," // vyaw
+              << _x_opt(NUM_OF_STATES*i + 11) << "," // ayaw
+              << _u_opt(NUM_OF_INPUTS*i + 0) << "," // jx
+              << _u_opt(NUM_OF_INPUTS*i + 1) << "," // jy
+              << _u_opt(NUM_OF_INPUTS*i + 2) << "," // jz
+              << _u_opt(NUM_OF_INPUTS*i + 3) << "," // jyaw
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 0) << "," // des_x
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 1) << "," // des_vx
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 2) << "," // des_ax
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 3) << "," // des_y
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 4) << "," // des_vy
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 5) << "," // des_ay
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 6) << "," // des_z
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 7) << "," // des_vz
+              << _referenceTraj(NUM_OF_STATES*(i+1) + 8) << "," // des_az
+              << _yaw_referenceTraj(NUM_OF_YAW_STATES*(i+1) + YAW_Yaw_IDX) << "," // des_yaw
+              << _yaw_referenceTraj(NUM_OF_YAW_STATES*(i+1) + YAW_VYaw_IDX) << "," // des_v_yaw
+              << _yaw_referenceTraj(NUM_OF_YAW_STATES*(i+1) + YAW_AYaw_IDX) << "\n"; // des_a_yaw
+      }
+      file.close();
+      printInfo("[MPC::saveMPCSolutionsToFile] Saved MPC solutions to file: %s", _outputCSVFile.c_str());
+   }
+   else
+      printError("[MPCROS::saveMPCSolutionsToFile] Coudl not open file %s", _outputCSVFile.c_str());
 }
