@@ -25,7 +25,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  double state_w = 7000.0;
+  double state_w = 800.0;
   printInfo("Setting state weight (for xy_Q matrix) to %f", state_w);
   if(!mpc->setXYStateWeight(state_w))
   {
@@ -33,7 +33,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  state_w = 7000.0;
+  state_w = 800.0;
   printInfo("Setting state weight (for z_Q matrix) to %f", state_w);
   if(!mpc->setZStateWeight(state_w))
   {
@@ -41,7 +41,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  state_w = 7000.0;
+  state_w = 1000.0;
   printInfo("Setting state weight (for yaw_Q matrix) to %f", state_w);
   if(!mpc->setYawStateWeight(state_w))
   {
@@ -49,7 +49,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  double input_w = 500.0;
+  double input_w = 10.0;
   printInfo("Setting XY input weight (for xy_R matrix) to %f", input_w);
   if(!mpc->setXYInputWeight(input_w))
   {
@@ -57,7 +57,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  input_w = 500.0;
+  input_w = 10.0;
   printInfo("Setting Z input weight (for z_R matrix) to %f", input_w);
   if(!mpc->setZInputWeight(input_w))
   {
@@ -65,7 +65,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  input_w = 500.0;
+  input_w = 0.01;
   printInfo("Setting Yaw input weight (for yaw_R matrix) to %f", input_w);
   if(!mpc->setYawInputWeight(input_w))
   {
@@ -73,7 +73,7 @@ int main(int argc, char * argv[])
     return 1;
   }
   
-  double maxVel=10.0;
+  double maxVel=12.0;
   printInfo(" Setting max. horizontal velocity to %0.2f m/s", maxVel);
   if(!mpc->setXYMaxVel(maxVel))
   {
@@ -87,50 +87,50 @@ int main(int argc, char * argv[])
     printError("Could not set vertical max. velocity");
   }
 
-  maxVel=100.0;
+  maxVel=200.0;
   printInfo(" Setting max. yaw speed to %0.2f rad/s", maxVel);
   if(!mpc->setYawMaxVel(maxVel))
   {
     printError("Could not set max. yaw speed");
   }
   
-  double maxAccel=5.0;
-  printInfo(" Setting max. horizontal acceleration to %0.2f m/s", maxAccel);
+  double maxAccel=10.0;
+  printInfo(" Setting max. horizontal acceleration to %0.2f m/s/s", maxAccel);
   if(!mpc->setXYMaxAccel(maxAccel))
   {
     printError("Could not set max. horizontal acceleration");
   }
 
-  maxAccel=5.0;
-  printInfo(" Setting max. vertical acceleration to %0.2f m/s", maxAccel);
+  maxAccel=20.0;
+  printInfo(" Setting max. vertical acceleration to %0.2f m/s/s", maxAccel);
   if(!mpc->setZMaxAccel(maxAccel))
   {
     printError("Could not set max. vertical acceleration");
   }
 
-  maxAccel=50.0;
-  printInfo(" Setting max. yaw acceleration to %0.2f m/s", maxAccel);
+  maxAccel=100.0;
+  printInfo(" Setting max. yaw acceleration to %0.2f m/s/s", maxAccel);
   if(!mpc->setYawMaxAccel(maxAccel))
   {
     printError("Could not set max. yaw acceleration");
   }
   
-  double maxJerk=5.0;
-  printInfo(" Setting max. horizontal jerk to %0.2f m/s", maxJerk);
+  double maxJerk=10.0;
+  printInfo(" Setting max. horizontal jerk to %0.2f m/s/s/s", maxJerk);
   if(!mpc->setXYMaxJerk(maxJerk))
   {
     printError("Could not set max. horizontal jerk");
   }
 
-  maxJerk=5.0;
-  printInfo(" Setting max. vertical jerk to %0.2f m/s", maxJerk);
+  maxJerk=10.0;
+  printInfo(" Setting max. vertical jerk to %0.2f m/s/s/s", maxJerk);
   if(!mpc->setZMaxJerk(maxJerk))
   {
     printError("Could not set max. vertical jerk");
   }
 
-  maxJerk=100.0;
-  printInfo(" Setting max. yaw jerk to %0.2f m/s", maxJerk);
+  maxJerk=200.0;
+  printInfo(" Setting max. yaw jerk to %0.2f m/s/s/s", maxJerk);
   if(!mpc->setYawMaxJerk(maxJerk))
   {
     printError("Could not set max. yaw jerk");
@@ -156,7 +156,7 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  printInfo("Setting the reference trajectory to an altitude of 1.0 and 0.0 for all other states.");
+  printInfo("Setting the reference trajectory to z=1, x=1, y=1 and 0.0 for all other states.");
   int ref_size = NUM_OF_STATES*(mpcWindow+1);
   Eigen::MatrixXd ref_traj;
   ref_traj.resize(ref_size,1);
@@ -165,7 +165,8 @@ int main(int argc, char * argv[])
   {
     // states order: [x, x_dot, x_ddot, y, y_dot, y_ddot, z, z_dot, z_ddot, yaw, yaw_dot, yaw_ddot ]
     ref_traj(i*NUM_OF_STATES+6,0) = 1.0; // z coordinate at all times (constant height)
-    ref_traj(i*NUM_OF_STATES+0,0) = 0.1; // x coordinate at all time  
+    ref_traj(i*NUM_OF_STATES+0,0) = 1.0; // x coordinate at all time
+    ref_traj(i*NUM_OF_STATES+3,0) = 1.0; // y coordinate at all time
   }
   if(!mpc->setReferenceTraj(ref_traj))
   {
