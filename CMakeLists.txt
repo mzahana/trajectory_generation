@@ -87,9 +87,23 @@ target_link_libraries(test_mpc_6dof
   mpc_6dof_lib
 )
 
+#
+# Build test_mpc_12state.cpp
+#
+add_executable(test_mpc_12state
+  test/test_mpc_12state.cpp
+)
+target_include_directories(test_mpc_12state
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(test_mpc_12state
+  mpc_12state_lib
+)
+
 # Install targets
 install(
-  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib
+  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib test_mpc_12state
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )
