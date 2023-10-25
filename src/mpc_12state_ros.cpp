@@ -224,8 +224,6 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
    // and _referenceTraj
    // and the size of MPC problem
    // The MPC rate will be close to the max(odom, _referenceTraj, MPC execution time)
-
-   RCLCPP_INFO(this->get_logger(),"[MPCROS::refPathCallback] Received a msg");
    if(!_state_received)
    {
       RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPathCallback] An initial state is not received. Check Odom. Returning");
@@ -271,7 +269,6 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
    }
 
    // set current state, refTraj, solve, extract solution, and publish msgs
-   RCLCPP_INFO(this->get_logger(),"[MPCROS::refPathCallback] Solving MPC");
    mpcROSLoop();
 
 }
