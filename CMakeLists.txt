@@ -141,7 +141,7 @@ target_link_libraries(test_mpc_12state
 
 # Install targets
 install(
-  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib test_mpc_12state mpc_12state_node
+  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib mpc_12state_ros_lib test_mpc_12state mpc_12state_node
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )

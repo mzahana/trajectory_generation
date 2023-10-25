@@ -125,9 +125,6 @@ MPCROS::MPCROS(): Node("mpc_12state_trajectory_generator")
    // Update _posehistory_vector for visualiztion
    _posehistory_vector.resize(_mpcWindow+1);
 
-   RCLCPP_INFO(this->get_logger(),"[MPCROS] will execute once reference trajectory is published...");
-
-
    RCLCPP_INFO(this->get_logger(), "[MPCROS] Creating subscribers and publishers");
    _odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
       "mpc/in/odom", rclcpp::SensorDataQoS(), std::bind(&MPCROS::odomCallback, this, _1));
@@ -150,7 +147,10 @@ MPCROS::MPCROS(): Node("mpc_12state_trajectory_generator")
    _multiDofTraj_pub = this->create_publisher<trajectory_msgs::msg::MultiDOFJointTrajectory>("mpc/out/trajectory_command", 10);
 
    RCLCPP_INFO(this->get_logger(), "[MPCROS] Done with creating subscribers and publishers");
-    
+
+   RCLCPP_INFO(this->get_logger(),"[MPCROS] will execute once reference trajectory is published...");
+
+   return;    
 }
 
 MPCROS::~MPCROS()
@@ -190,6 +190,9 @@ MPCROS::odomCallback(const nav_msgs::msg::Odometry & msg)
                         msg.pose.pose.position.y,
                         msg.twist.twist.linear.y,
                         _current_accel(1),
+                        msg.pose.pose.position.z,
+                        msg.twist.twist.linear.z,
+                        _current_accel(2),
                         yaw,
                         msg.twist.twist.angular.z,
                         0.0;
@@ -222,9 +225,10 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
    // and the size of MPC problem
    // The MPC rate will be close to the max(odom, _referenceTraj, MPC execution time)
 
+   RCLCPP_INFO(this->get_logger(),"[MPCROS::refPathCallback] Received a msg");
    if(!_state_received)
    {
-      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPosesCallback] An initial state is not received. Check Odom. Returning");
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPathCallback] An initial state is not received. Check Odom. Returning");
       return;
    }
    // Make sure we have a new reference trajectory
@@ -233,7 +237,7 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
    auto dt = d2 - d1;
    if (dt <= 0.0)
    {
-      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPosesCallback] Received an old reference trajectory");
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPathCallback] Received an old reference trajectory");
       return;
    }
    _ref_traj_last_t = msg.header.stamp;
@@ -244,7 +248,7 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
    dt = d2 - d1;
    if (dt <= 0.0)
    {
-      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refTrajCallback] Received an old state. Return");
+      RCLCPP_ERROR(this->get_logger(),"[MPCROS::refPathCallback] Received an old state. Return");
       return;
    }
    _state_last_t = _state_current_t;
@@ -252,7 +256,7 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
    // Make sure we have enough state predictions of the target (reference trajectory)
    if (msg.poses.size() < (long unsigned int)(_mpcWindow+1) )
    {
-      RCLCPP_ERROR(this->get_logger(), "[MPCROS::refTrajCallback] Not enough reference states to consume. Size of reference states %d < MPC steps+1 %d", (int)msg.poses.size(), _mpcWindow+1);
+      RCLCPP_ERROR(this->get_logger(), "[MPCROS::refPathCallback] Not enough reference states to consume. Size of reference states %d < MPC steps+1 %d", (int)msg.poses.size(), _mpcWindow+1);
       return;
    }
 
@@ -267,6 +271,7 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
    }
 
    // set current state, refTraj, solve, extract solution, and publish msgs
+   RCLCPP_INFO(this->get_logger(),"[MPCROS::refPathCallback] Solving MPC");
    mpcROSLoop();
 
 }

@@ -1,4 +1,4 @@
-mpc_node:
+mpc_12state_node:
   ros__parameters:
     debug: False
     # Publish pose path for visualizaion in RViz

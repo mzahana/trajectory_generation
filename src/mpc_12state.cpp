@@ -1010,7 +1010,8 @@ MPC::initQPSolver(void)
    // @WARNING You must initialize all variables (with unkown size) before executing this function!
 
    // XY QP solver
-   printInfo("Initializing XY QP solver ...");
+   if(_debug)
+      printInfo("Initializing XY QP solver ...");
    _xy_qpSolver.settings()->setVerbosity(_debug);
    _xy_qpSolver.settings()->setWarmStart(true);
    _xy_qpSolver.data()->setNumberOfVariables(NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow);
@@ -1029,7 +1030,8 @@ MPC::initQPSolver(void)
    }
 
    // Z QP solver
-   printInfo("Initializing Z QP solver ...");
+   if(_debug)
+      printInfo("Initializing Z QP solver ...");
    _z_qpSolver.settings()->setVerbosity(_debug);
    _z_qpSolver.settings()->setWarmStart(true);
    _z_qpSolver.data()->setNumberOfVariables(NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow);
@@ -1048,7 +1050,8 @@ MPC::initQPSolver(void)
    }
 
    // Yaw QP solver
-   printInfo("Initializing Yaw QP solver ...");
+   if(_debug)
+      printInfo("Initializing Yaw QP solver ...");
    _yaw_qpSolver.settings()->setVerbosity(_debug);
    _yaw_qpSolver.settings()->setWarmStart(true);
    _yaw_qpSolver.data()->setNumberOfVariables(NUM_OF_YAW_STATES*(_mpcWindow+1) + NUM_OF_YAW_INPUTS*_mpcWindow);
@@ -1562,14 +1565,15 @@ MPC::setDt(double dt)
    if(dt >0)
    {
       _dt = dt;
-      printInfo("[MPC::setDt] dt = %f", _dt);
+      if(_debug)
+         printInfo("[MPC::setDt] dt = %f", _dt);
       return true;
    }
    else
    {
-         printError("[MPC::setDt] dt < 0. Defaulting to 0.1");
-         _dt = 0.1;
-         return false;
+      printError("[MPC::setDt] dt < 0. Defaulting to 0.1");
+      _dt = 0.1;
+      return false;
    }
 }
 
@@ -1577,7 +1581,8 @@ void
 MPC::setDebug(bool d)
 {
    _debug = d;
-   printInfo("Debug = %d", (int) _debug);
+   if(_debug)
+      printInfo("Debug = %d", (int) _debug);
    return;
 }
 
@@ -1587,7 +1592,8 @@ MPC::setMPCWindow(int N)
    if(N>0)
    {
       _mpcWindow = N;
-      printInfo("_mpcWindow = %d", _mpcWindow);
+      if(_debug)
+         printInfo("_mpcWindow = %d", _mpcWindow);
       return true;
    }
    else
@@ -1720,7 +1726,8 @@ void
 MPC::enableControlSmoothing(bool b)
 {
    _enable_control_smoothing = b;
-   printInfo("_enable_control_smoothing = %d", (int)_enable_control_smoothing);
+   if(_debug)
+      printInfo("_enable_control_smoothing = %d", (int)_enable_control_smoothing);
    return;
 }
 
@@ -1733,7 +1740,8 @@ MPC::setAltAboveTarget(double h)
       return false;
    }
    _alt_above_target = h;
-   printInfo("_alt_above_target = %f", _alt_above_target);
+   if(_debug)
+      printInfo("_alt_above_target = %f", _alt_above_target);
    return true;
 }
 
