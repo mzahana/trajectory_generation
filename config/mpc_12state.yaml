@@ -1,0 +1,53 @@
+mpc_node:
+  ros__parameters:
+    debug: False
+    # Publish pose path for visualizaion in RViz
+    pub_pose_path: True
+
+    # Sampling time in seconds
+    # IMPORTANT!!! Make sure this is the same as the reference trajectory sampling time
+    dt_pred: 0.1
+
+    # Number of MPC horizon steps, shoud be > 1
+    mpc_window: 10
+
+    # Minimum altitude above ground in UAV local frame, meter(s)
+    # This is just for safety, to avoid crashing into ground
+    minimum_altitude: -1.0
+
+    # Localization frame id. Pose trajectory is published  with respect to it
+    reference_frame_id: "interceptor/odom"
+
+    # Smooth control signal, to avoid large control jumps 
+    enable_control_smoothing: False
+    # Weight/penality on control input differences
+    xy_smooth_input_weight: 100.0
+    z_smooth_input_weight: 100.0
+    yaw_smooth_input_weight: 100.0
+
+    # 3D velocity limits in m/s. Should be >= 0
+    # [x,y,z]
+    xy_max_velocity: 12.0
+    z_max_velocity: 10.0
+    yaw_max_velocity: 120.0
+
+    # 3D Net acceleration limits in m/s/s. Should be >= 0
+    # [x,y,z]
+    xy_max_acceleration: 10.0
+    z_max_acceleration: 18.0
+    yaw_max_acceleration: 200.0
+
+    # 3D jerk limits in m/s/s/s. Should be >= 0
+    xy_max_jerk: 50.0
+    z_max_jerk: 50.0
+    yaw_max_jerk: 200.0
+
+    # Optimization penalty on the states (Q)
+    xy_state_weight: 7000.0
+    z_state_weight: 7000.0
+    yaw_state_weight: 7000.0
+
+    # Optimization penalty on the control inuputs (R)
+    xy_input_weight: 10.0
+    z_input_weight: 10.0
+    yaw_input_weight: 0.1

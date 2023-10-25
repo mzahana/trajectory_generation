@@ -17,6 +17,9 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 #
 # mpc_6dof.cpp
@@ -74,6 +77,41 @@ ament_target_dependencies(mpc_node
 )
 
 #
+# mpc_12state_ros.cpp
+#
+add_library(mpc_12state_ros_lib src/mpc_12state_ros.cpp)
+target_include_directories(mpc_12state_ros_lib
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+ament_target_dependencies(mpc_12state_ros_lib rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs tf2 tf2_ros tf2_geometry_msgs )
+target_link_libraries(mpc_12state_ros_lib mpc_12state_lib)
+# this line to exports the library
+# ament_export_targets(mpc_12state_ros_lib HAS_LIBRARY_TARGET)
+
+#
+# Build the ROS 2 node (mpc_12state_node)
+#
+add_executable(mpc_12state_node
+  src/mpc_12state_node.cpp
+)
+target_include_directories(mpc_12state_node
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(mpc_12state_node
+  mpc_12state_lib
+  mpc_12state_ros_lib
+)
+ament_target_dependencies(mpc_12state_node
+  rclcpp
+)
+
+###################
+# Tests
+###################
+
+#
 # Build test_mpc_6dof.cpp
 #
 add_executable(test_mpc_6dof
@@ -103,7 +141,7 @@ target_link_libraries(test_mpc_12state
 
 # Install targets
 install(
-  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib test_mpc_12state
+  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib test_mpc_12state mpc_12state_node
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )
