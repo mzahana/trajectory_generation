@@ -45,7 +45,7 @@ def generate_launch_description():
             ('mpc/in/ref_traj_poses', 'mpc/in/ref_traj_poses'),
             ('mpc/in/ref_traj_path', 'traj_predictor/const_vel_path'),
             ('mpc/out/path', 'mpc/out/path'),
-            ('mpc/out/trajectory_commands', 'mpc/out/trajectory_command'),
+            ('mpc/out/trajectory_command', '/interceptor/geometric_controller/multi_dof_setpoint'),
         ],
         # prefix='gdb -ex run --args'
     )
