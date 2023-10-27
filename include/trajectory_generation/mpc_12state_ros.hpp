@@ -91,7 +91,7 @@ private:
 
    trajectory_msgs::msg::MultiDOFJointTrajectory _multidof_msg;
 
-   MPC *_mpc; /** MPC object */
+   MPC12STATE *_mpc; /** MPC object */
 
    /**
     * @brief Odometry callback

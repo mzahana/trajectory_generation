@@ -4,8 +4,8 @@
 
 int main(int argc, char * argv[])
 {
-  MPC *mpc; /** MPC object */
-  mpc = new MPC();
+  MPC12STATE *mpc; /** MPC object */
+  mpc = new MPC12STATE();
 
   // Get the start time.
   auto start = std::chrono::high_resolution_clock::now();

@@ -152,7 +152,7 @@ using MatU_YAW = Eigen::Matrix<double, NUM_OF_YAW_INPUTS, 1>;
  * Implements Receding horizon controller for generating optimal trajectory to track a moving object.
  * Assumed model of the drone that is tracking the target is a 3rd order discrete LTI system capturing the translational dynamics.
  */
-class MPC
+class MPC12STATE
 {
 private:
 
@@ -492,10 +492,10 @@ public:
    * @brief Constructor
    * 
    */
-  MPC();
+  MPC12STATE();
   
   /** Destructor */
-  ~MPC();
+  ~MPC12STATE();
 
   /**
    * @brief Initialize MPC problem.

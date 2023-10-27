@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 MPCROS::MPCROS(): Node("mpc_12state_trajectory_generator")
 {
-    _mpc = new MPC();
+    _mpc = new MPC12STATE();
 
     this->declare_parameter("dt_pred", 0.05);
     _mpc->setDt(this->get_parameter("dt_pred").get_parameter_value().get<double>());
