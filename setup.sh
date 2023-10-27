@@ -68,14 +68,14 @@ else
     sudo make install
 fi
 
-bashrc_file="$HOME/.bashrc"
-line_to_check="export OsqpEigen_DIR=$OSQP_SRC/osqp-eigen/install"
+# bashrc_file="$HOME/.bashrc"
+# line_to_check="export OsqpEigen_DIR=$OSQP_SRC/osqp-eigen/install"
 
-if ! grep -qF "$line_to_check" "$bashrc_file"; then
-    echo "$line_to_check" >> "$bashrc_file"
-    echo "OsqpEigen_DIR is added to .bashrc file."
-else
-    echo "OsqpEigen_DIR already exists in .bashrc file. No changes made."
-fi
+# if ! grep -qF "$line_to_check" "$bashrc_file"; then
+#     echo "$line_to_check" >> "$bashrc_file"
+#     echo "OsqpEigen_DIR is added to .bashrc file."
+# else
+#     echo "OsqpEigen_DIR already exists in .bashrc file. No changes made."
+# fi
 
-cd $ROS2_WS && colcon build --packages-up-to trajectory_prediction
+cd $ROS2_WS && colcon build --packages-up-to trajectory_generation
