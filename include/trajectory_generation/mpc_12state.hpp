@@ -60,6 +60,7 @@ void printWarn(const char* format, const Args&... args) {
     printf(format, args...);
     printf("\033[0m"); // Reset text color (back to default)
     printf("\n");
+    fflush(stdout);  // Flush the stdout buffer
 }
 
 template<typename... Args>
@@ -69,6 +70,7 @@ void printInfo(const char* format, const Args&... args) {
     printf(format, args...);
     printf("\033[0m"); // Reset text color (back to default)
     printf("\n");
+    fflush(stdout);  // Flush the stdout buffer
 }
 
 template<typename... Args>
@@ -78,6 +80,7 @@ void printError(const char* format, const Args&... args) {
     printf(format, args...);
     printf("\033[0m"); // Reset text color (back to default)
     printf("\n");
+    fflush(stdout);  // Flush the stdout buffer
 }
 
 static constexpr int      NUM_OF_STATES = 6+3+3;       /** Number of UAV states (position, velocity, acceleration, alsoo for yaw) */

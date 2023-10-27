@@ -1614,6 +1614,8 @@ MPC12STATE::setXYStateWeight(double w)
    }
 
    _xy_state_weight = w;
+   if(_debug)
+      printInfo("_xy_state_weight = %d", w);
    return true;
 }
 
@@ -1627,6 +1629,8 @@ MPC12STATE::setZStateWeight(double w)
    }
 
    _z_state_weight = w;
+   if(_debug)
+      printInfo("_z_state_weight = %d", w);
    return true;
 }
 
@@ -1640,6 +1644,8 @@ MPC12STATE::setYawStateWeight(double w)
    }
 
    _yaw_state_weight = w;
+   if(_debug)
+      printInfo("_yaw_state_weight = %d", w);
    return true;
 }
 
@@ -1652,7 +1658,8 @@ MPC12STATE::setXYInputWeight(double w)
       printError("_xy_input_weight = %f < 0", w);
       return false;
    }
-
+   if(_debug)
+      printInfo("_xy_input_weight = %d", w);
    _xy_input_weight = w;
    return true;
 }
@@ -1666,6 +1673,8 @@ MPC12STATE::setZInputWeight(double w)
       return false;
    }
 
+   if(_debug)
+      printInfo("_z_input_weight = %d", w);
    _z_input_weight = w;
    return true;
 }
@@ -1678,8 +1687,9 @@ MPC12STATE::setYawInputWeight(double w)
       printError("_yaw_input_weight = %f < 0", w);
       return false;
    }
-
    _yaw_input_weight = w;
+   if(_debug)
+      printInfo("_yaw_input_weight = %d", w);
    return true;
 }
 
@@ -1693,6 +1703,8 @@ MPC12STATE::setXYSmoothInputWeight(double w)
    }
 
    _xy_smooth_input_weight = w;
+   if(_debug)
+      printInfo("_xy_smooth_input_weight = %d", w);
    return true;
 }
 
@@ -1706,6 +1718,8 @@ MPC12STATE::setZSmoothInputWeight(double w)
    }
 
    _z_smooth_input_weight = w;
+   if(_debug)
+      printInfo("_z_smooth_input_weight = %d", w);
    return true;
 }
 
@@ -1719,6 +1733,8 @@ MPC12STATE::setYawSmoothInputWeight(double w)
    }
 
    _yaw_smooth_input_weight = w;
+   if(_debug)
+      printInfo("_yaw_smooth_input_weight = %d", w);
    return true;
 }
 
