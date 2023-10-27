@@ -58,7 +58,7 @@ _xy_smooth_input_weight(10),
 _z_smooth_input_weight(10),
 _yaw_smooth_input_weight(10),
 _received_refTraj(false),
-_enable_control_smoothing(true),
+_enable_control_smoothing(false),
 _minAltitude(1.0),
 _is_MPC_initialized(false),
 _save_mpc_data(false)
@@ -809,12 +809,12 @@ MPC12STATE::castXYMPCToQPConstraintBounds(void)
    _xy_upperBounds.setZero();
    _xy_lowerBounds.setZero();
    _xy_lowerBounds << lowerEquality,
-                        _xy_current_state,
+                        -OsqpEigen::INFTY,-_xy_MaxVel, -_xy_MaxAccel, -OsqpEigen::INFTY, -_xy_MaxVel, -_xy_MaxAccel,
                         _xy_Min,
                         uLowerInequality,
                         _xy_MixedState_Min;
    _xy_upperBounds << upperEquality,
-                        _xy_current_state,
+                        OsqpEigen::INFTY,_xy_MaxVel, _xy_MaxAccel, OsqpEigen::INFTY, _xy_MaxVel, _xy_MaxAccel,
                         _xy_Max,
                         uUpperInequality,
                         _xy_MixedState_Max;
@@ -949,8 +949,10 @@ MPC12STATE::updateXYQPConstraintsBounds(void)
    _xy_upperBounds.block(0,0,NUM_OF_XY_STATES,1) = -1.0*_xy_current_state;
 
    // Inequality for x(0)
-   _xy_lowerBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1),0,NUM_OF_XY_STATES,1) = _xy_current_state;
-   _xy_upperBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1),0,NUM_OF_XY_STATES,1) = _xy_current_state;
+   Eigen::VectorXd x0; x0.resize(6); x0.setZero();
+   x0 <<  OsqpEigen::INFTY, _xy_MaxVel, _xy_MaxAccel,  OsqpEigen::INFTY, _xy_MaxVel, _xy_MaxAccel;
+   _xy_lowerBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1),0,NUM_OF_XY_STATES,1) = -x0;
+   _xy_upperBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1),0,NUM_OF_XY_STATES,1) = x0;
    
    // _xy_Min, _xy_Max
    _xy_lowerBounds.block(NUM_OF_XY_STATES*(_mpcWindow+1)+NUM_OF_XY_STATES,0,NUM_OF_XY_STATES*_mpcWindow,1) = _xy_Min;
@@ -1922,60 +1924,6 @@ MPC12STATE::setYawMaxJerk(const double j)
    return true;
 }
 
-// void 
-// MPC12STATE::saveMPCDataToFile(void)
-// {
-//    //https://eigen.tuxfamily.org/dox/structEigen_1_1IOFormat.html
-//    const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-//    const static Eigen::IOFormat CleanFmt(Eigen::FullPrecision, 0, ", ", "\n", "[", "]");
-//    std::ofstream file(_outputCSVFile);
-//    if (file.is_open())
-//    {
-//       std::string sep= "\n------------------------------------------\n";
-
-//       file << "Initial state, x(0): \n";
-//       file << _current_state.format(CSVFormat) << sep ;
-
-//       file << " A : \n";
-//       file << _A.format(CleanFmt) << sep;
-      
-//       file << "B : \n";
-//       file << _B.format(CleanFmt) << sep;
-
-//       file << "Q : \n";
-//       file << _Q.format(CleanFmt) << sep;
-
-//       file << "R : \n";
-//       file << _R.format(CleanFmt) << sep;
-
-//       file << "Hessian matrix, P: \n";
-//       file << _hessian.format(CleanFmt) << sep;
-
-//       file << "Constarints matrix, Ac: \n";
-//       file << _Ac.format(CleanFmt) << sep;
-
-//       file << "Lower bounds, l: \n";
-//       file << _lowerBounds.format(CleanFmt) << sep;
-
-//       file << "Upper bounds, l: \n";
-//       file << _upperBounds.format(CleanFmt) << sep;
-
-//       file << "gradient, q: \n";
-//       file << _gradient.format(CleanFmt) << sep;
-
-//       file << "Optimal state trajectory, X: \n";
-//       file << _optimal_state_traj.format(CleanFmt) << sep;
-
-//       file << "Optimal control trajectory, U: \n";
-//       file << _optimal_control_traj.format(CleanFmt) << sep;
-
-//       file.close();
-//       printInfo("[MPC12STATE::saveMPCDataToFile] Saved MPC solutions to file: %s", _outputCSVFile.c_str());
-//    }
-//    else
-//       printError("[MPCROS::saveMPCDataToFile] Coudl not open file %s", _outputCSVFile.c_str());
-// }
-
 bool
 MPC12STATE::setReferenceTraj(const Eigen::MatrixXd &v)
 {
@@ -2077,25 +2025,6 @@ Eigen::VectorXd MPC12STATE::getGradient(void)
    return  g;
 }
 
-// Eigen::VectorXd MPC12STATE::getLowerBounds(void)
-// {
-//    return _lowerBounds;
-// }
-// Eigen::VectorXd MPC12STATE::getUpperBounds(void)
-// {
-//    return _upperBounds;
-// }
-
-// Eigen::MatrixXd MPC12STATE::getContraintsMatrix(void)
-// {
-//    return _Ac;
-// }
-
-// Eigen::MatrixXd MPC12STATE::getHessianMatrix(void)
-// {
-//    return _hessian;
-// }
-
 Eigen::MatrixXd MPC12STATE::getQ(void)
 {
    // Create full state Q matrix
@@ -2121,7 +2050,39 @@ Eigen::MatrixXd MPC12STATE::getR(void)
     R.block(_xy_R.rows() + _z_R.rows(), _xy_R.cols() + _z_R.cols(), _yaw_R.rows(), _yaw_R.cols()) = _yaw_R;
    return R;
 }
+//////////// Getters for XY /////////////////////
+Eigen::MatrixXd MPC12STATE::getXYTransitionMatrix(void) {return _xy_A;}
+Eigen::MatrixXd MPC12STATE::getXYInputMatrix(void) {return _xy_B;}
+Eigen::VectorXd MPC12STATE::getXYLowerBounds(void) {return _xy_lowerBounds;}
+Eigen::VectorXd MPC12STATE::getXYUpperBounds(void) {return _xy_upperBounds;}
+Eigen::MatrixXd MPC12STATE::getXYContraintsMatrix(void) {return _xy_Ac;}
+Eigen::MatrixXd MPC12STATE::getXYHessianMatrix(void) {return _xy_hessian;}
+Eigen::VectorXd MPC12STATE::getXYGradient(void) {return _xy_gradient;}
+Eigen::MatrixXd MPC12STATE::getXYQ() {return _xy_Q;}
+Eigen::MatrixXd MPC12STATE::getXYR() {return _xy_R;}
+//////////// Getters for Z /////////////////////
+Eigen::MatrixXd MPC12STATE::getZTransitionMatrix(void) {return _z_A;}
+Eigen::MatrixXd MPC12STATE::getZInputMatrix(void) {return _z_B;}
+Eigen::VectorXd MPC12STATE::getZLowerBounds(void) {return _z_lowerBounds;}
+Eigen::VectorXd MPC12STATE::getZUpperBounds(void) {return _z_upperBounds;}
+Eigen::MatrixXd MPC12STATE::getZContraintsMatrix(void) {return _z_Ac;}
+Eigen::MatrixXd MPC12STATE::getZHessianMatrix(void) {return _z_hessian;}
+Eigen::VectorXd MPC12STATE::getZGradient(void) {return _z_gradient;}
+Eigen::MatrixXd MPC12STATE::getZQ() {return _z_Q;}
+Eigen::MatrixXd MPC12STATE::getZR() {return _z_R;}
+//////////// Getters for Yaw /////////////////////
+Eigen::MatrixXd MPC12STATE::getYawTransitionMatrix(void) {return _yaw_A;}
+Eigen::MatrixXd MPC12STATE::getYawInputMatrix(void) {return _yaw_B;}
+Eigen::VectorXd MPC12STATE::getYawLowerBounds(void) {return _yaw_lowerBounds;}
+Eigen::VectorXd MPC12STATE::getYawUpperBounds(void) {return _yaw_upperBounds;}
+Eigen::MatrixXd MPC12STATE::getYawContraintsMatrix(void) {return _yaw_Ac;}
+Eigen::MatrixXd MPC12STATE::getYawHessianMatrix(void) { return _yaw_hessian; }
+Eigen::VectorXd MPC12STATE::getYawGradient(void) {return _yaw_gradient;}
+Eigen::MatrixXd MPC12STATE::getYawQ() {return _yaw_Q;}
+Eigen::MatrixXd MPC12STATE::getYawR() {return _yaw_R;}
 
+/// @brief //////////////
+/// @param path 
 void MPC12STATE::setOutputFilePath(std::string path)
 {
    _outputCSVFile = path;
@@ -2189,4 +2150,132 @@ MPC12STATE::saveMPCSolutionsToFile(void)
    }
    else
       printError("[MPCROS::saveMPCSolutionsToFile] Coudl not open file %s", _outputCSVFile.c_str());
+}
+
+void 
+MPC12STATE::saveMPCDataToFile(void)
+{
+   //https://eigen.tuxfamily.org/dox/structEigen_1_1IOFormat.html
+   const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+   const static Eigen::IOFormat CleanFmt(Eigen::FullPrecision, 0, ", ", "\n", "[", "]");
+   std::ofstream file(_outputCSVFile);
+   if (file.is_open())
+   {
+      std::string sep= "\n------------------------------------------\n";
+
+      file << "Initial xy state, xy(0): \n";
+      file << _xy_current_state.format(CSVFormat) << sep ;
+
+      file << " _xy_A : \n";
+      file << _xy_A.format(CleanFmt) << sep;
+      
+      file << "_xy_B : \n";
+      file << _xy_B.format(CleanFmt) << sep;
+
+      file << "_xy_Q : \n";
+      file << _xy_Q.format(CleanFmt) << sep;
+
+      file << "_xy_R : \n";
+      file << _xy_R.format(CleanFmt) << sep;
+
+      file << "xy Hessian matrix, xy_P: \n";
+      file << _xy_hessian.format(CleanFmt) << sep;
+
+      file << "xy Constarints matrix, xy_Ac: \n";
+      file << _xy_Ac.format(CleanFmt) << sep;
+
+      file << "xy Lower bounds: \n";
+      file << _xy_lowerBounds.format(CleanFmt) << sep;
+
+      file << "xy Upper bounds: \n";
+      file << _xy_upperBounds.format(CleanFmt) << sep;
+
+      file << "xy gradient: \n";
+      file << _xy_gradient.format(CleanFmt) << sep;
+
+      file << "Optimal xy state trajectory: \n";
+      file << _xy_x_opt.format(CleanFmt) << sep;
+
+      file << "Optimal xy control trajectory: \n";
+      file << _xy_u_opt.format(CleanFmt) << sep;
+
+      ///////////////// Z data //////////////////
+      file << "Initial z state, z(0): \n";
+      file << _z_current_state.format(CSVFormat) << sep ;
+
+      file << " _z_A : \n";
+      file << _z_A.format(CleanFmt) << sep;
+      
+      file << "_z_B : \n";
+      file << _z_B.format(CleanFmt) << sep;
+
+      file << "_z_Q : \n";
+      file << _z_Q.format(CleanFmt) << sep;
+
+      file << "_z_R : \n";
+      file << _z_R.format(CleanFmt) << sep;
+
+      file << "z Hessian matrix, z_P: \n";
+      file << _z_hessian.format(CleanFmt) << sep;
+
+      file << "z Constarints matrix, z_Ac: \n";
+      file << _z_Ac.format(CleanFmt) << sep;
+
+      file << "z Lower bounds: \n";
+      file << _z_lowerBounds.format(CleanFmt) << sep;
+
+      file << "z Upper bounds: \n";
+      file << _z_upperBounds.format(CleanFmt) << sep;
+
+      file << "z gradient: \n";
+      file << _z_gradient.format(CleanFmt) << sep;
+
+      file << "Optimal z state trajectory: \n";
+      file << _z_x_opt.format(CleanFmt) << sep;
+
+      file << "Optimal z control trajectory: \n";
+      file << _z_u_opt.format(CleanFmt) << sep;
+
+      ///////////////////////////// Yaw data ////////////////////
+      file << "Initial yaw state, yaw(0): \n";
+      file << _z_current_state.format(CSVFormat) << sep ;
+
+      file << " _yaw_A : \n";
+      file << _yaw_A.format(CleanFmt) << sep;
+      
+      file << "_yaw_B : \n";
+      file << _yaw_B.format(CleanFmt) << sep;
+
+      file << "_yaw_Q : \n";
+      file << _yaw_Q.format(CleanFmt) << sep;
+
+      file << "_yaw_R : \n";
+      file << _yaw_R.format(CleanFmt) << sep;
+
+      file << "yaw Hessian matrix, z_P: \n";
+      file << _yaw_hessian.format(CleanFmt) << sep;
+
+      file << "yaw Constarints matrix, z_Ac: \n";
+      file << _yaw_Ac.format(CleanFmt) << sep;
+
+      file << "yaw Lower bounds: \n";
+      file << _yaw_lowerBounds.format(CleanFmt) << sep;
+
+      file << "yaw Upper bounds: \n";
+      file << _yaw_upperBounds.format(CleanFmt) << sep;
+
+      file << "yaw gradient: \n";
+      file << _yaw_gradient.format(CleanFmt) << sep;
+
+      file << "Optimal yaw state trajectory: \n";
+      file << _yaw_x_opt.format(CleanFmt) << sep;
+
+      file << "Optimal yaw control trajectory: \n";
+      file << _yaw_u_opt.format(CleanFmt) << sep;
+
+      file.close();
+      printInfo("[MPC12STATE::saveMPCDataToFile] Saved MPC data to file: %s", _outputCSVFile.c_str());
+   }
+   else
+      printError("[MPCROS::saveMPCDataToFile] Coudl not open file %s", _outputCSVFile.c_str());
 }

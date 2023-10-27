@@ -11,13 +11,11 @@ int main(int argc, char * argv[])
   auto start = std::chrono::high_resolution_clock::now();
   mpc->setDebug(false);
 
-  mpc->setOutputFilePath("/home/user/shared_volume/test_mpc_12state.txt");
-
   double dt = 0.1;
   printInfo("Setting prediction time sample to %f second (s)", dt);
   mpc->setDt(dt);
 
-  int mpcWindow = 20;
+  int mpcWindow = 2;
   printInfo("Setting MPC window to %d steps.", mpcWindow);
   if(!mpc->setMPCWindow(mpcWindow))
   {
@@ -146,9 +144,9 @@ int main(int argc, char * argv[])
 
   printInfo("Settin current state to [0.0, 0.0, 0.0, 0.0, 0.0, 0.0].");
   MatX_12STATE current_state; // [x, x_dot, x_ddot, y, y_dot, y_ddot, z, z_dot, z_ddot, yaw, yaw_dot, yaw_ddot ]
-  current_state << 0.0, 0.0, 0.0, // x, x_dot, x_ddot
+  current_state << 0.5, 0.0, 0.0, // x, x_dot, x_ddot
                   0.0, 0.0, 0.0, // y, y_dot, y_ddot
-                  0.0, 0.0, 0.0, // z, z_dot, z_ddot
+                  0.1, 0.0, 0.0, // z, z_dot, z_ddot
                   0.0, 0.0, 0.0; // yaw, yaw_dot, yaw_ddot
   if(!mpc->setCurrentState(current_state))
   {
@@ -214,7 +212,13 @@ int main(int argc, char * argv[])
    std::cout << x_N_opt << "\n";
    printInfo("At step = %d, Error between simulated and optimal final state = %f", mpcWindow, (x_N_opt-x0).norm());
 
+   // Save solutions only
+   mpc->setOutputFilePath("/home/user/shared_volume/test_mpc_12state.txt");
    mpc->saveMPCSolutionsToFile();
+
+   // Save all data
+   mpc->setOutputFilePath("/home/user/shared_volume/test_mpc_12state_data.txt");
+   mpc->saveMPCDataToFile();
 
 
   return 0;
