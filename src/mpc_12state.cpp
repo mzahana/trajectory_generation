@@ -2060,6 +2060,9 @@ Eigen::MatrixXd MPC12STATE::getXYHessianMatrix(void) {return _xy_hessian;}
 Eigen::VectorXd MPC12STATE::getXYGradient(void) {return _xy_gradient;}
 Eigen::MatrixXd MPC12STATE::getXYQ() {return _xy_Q;}
 Eigen::MatrixXd MPC12STATE::getXYR() {return _xy_R;}
+double MPC12STATE::getXYMaxVel(void){return _xy_MaxVel;}
+double MPC12STATE::getXYMaxAccel(void){return _xy_MaxAccel;}
+double MPC12STATE::getXYMaxJerk(void){return _xy_MaxJerk;}
 //////////// Getters for Z /////////////////////
 Eigen::MatrixXd MPC12STATE::getZTransitionMatrix(void) {return _z_A;}
 Eigen::MatrixXd MPC12STATE::getZInputMatrix(void) {return _z_B;}
@@ -2070,6 +2073,9 @@ Eigen::MatrixXd MPC12STATE::getZHessianMatrix(void) {return _z_hessian;}
 Eigen::VectorXd MPC12STATE::getZGradient(void) {return _z_gradient;}
 Eigen::MatrixXd MPC12STATE::getZQ() {return _z_Q;}
 Eigen::MatrixXd MPC12STATE::getZR() {return _z_R;}
+double MPC12STATE::getZMaxVel(void){return _z_MaxVel;}
+double MPC12STATE::getZMaxAccel(void){return _z_MaxAccel;}
+double MPC12STATE::getZMaxJerk(void){return _z_MaxJerk;}
 //////////// Getters for Yaw /////////////////////
 Eigen::MatrixXd MPC12STATE::getYawTransitionMatrix(void) {return _yaw_A;}
 Eigen::MatrixXd MPC12STATE::getYawInputMatrix(void) {return _yaw_B;}
@@ -2080,6 +2086,9 @@ Eigen::MatrixXd MPC12STATE::getYawHessianMatrix(void) { return _yaw_hessian; }
 Eigen::VectorXd MPC12STATE::getYawGradient(void) {return _yaw_gradient;}
 Eigen::MatrixXd MPC12STATE::getYawQ() {return _yaw_Q;}
 Eigen::MatrixXd MPC12STATE::getYawR() {return _yaw_R;}
+double MPC12STATE::getYawMaxVel(void){return _yaw_MaxVel;}
+double MPC12STATE::getYawMaxAccel(void){return _yaw_MaxAccel;}
+double MPC12STATE::getYawMaxJerk(void){return _yaw_MaxJerk;}
 
 /// @brief //////////////
 /// @param path 
@@ -2094,7 +2103,7 @@ MPC12STATE::saveMPCSolutionsToFile(void)
    std::ofstream file(_outputCSVFile);
    if (file.is_open())
    {
-      file << "time,x,v_x,a_x,y,v_y,a_y,z,v_z,a_z,yaw,v_yaw,a_yaw,j_x,j_y,j_z,j_yaw,des_x,des_vx,des_ax,des_y,des_vy,des_ay,des_z,des_vz,des_az,des_yaw,des_v_yaw,des_a_yaw\n";
+      file << "time,x,v_x,a_x,y,v_y,a_y,z,v_z,a_z,yaw,v_yaw,a_yaw,j_x,j_y,j_z,j_yaw,des_x,des_vx,des_ax,des_y,des_vy,des_ay,des_z,des_vz,des_az,des_yaw,des_v_yaw,des_a_yaw,xy_VelMin,xy_VelMax,xy_AccelMin,xy_AccelMax,xy_JerkMin,xy_JerkMax,z_VelMin,z_VelMax,z_AccelMin,z_AccelMax,z_JerkMin,z_JerkMax,yaw_VelMin,yaw_VelMax,yaw_AccelMin,yaw_AccelMax,yaw_JerkMin,yaw_JerkMax\n";
       file << "0.0";// first time stamp
       // Initial state
       for (int i=0; i<NUM_OF_STATES; i++)
@@ -2143,7 +2152,25 @@ MPC12STATE::saveMPCSolutionsToFile(void)
               << _referenceTraj(NUM_OF_STATES*(i+1) + 8) << "," // des_az
               << _yaw_referenceTraj(NUM_OF_YAW_STATES*(i+1) + YAW_Yaw_IDX) << "," // des_yaw
               << _yaw_referenceTraj(NUM_OF_YAW_STATES*(i+1) + YAW_VYaw_IDX) << "," // des_v_yaw
-              << _yaw_referenceTraj(NUM_OF_YAW_STATES*(i+1) + YAW_AYaw_IDX) << "\n"; // des_a_yaw
+              << _yaw_referenceTraj(NUM_OF_YAW_STATES*(i+1) + YAW_AYaw_IDX) << "," // des_a_yaw
+              << -_xy_MaxVel << ","
+              << _xy_MaxVel << ","
+              << -_xy_MaxAccel << ","
+              << _xy_MaxAccel << ","
+              << -_xy_MaxJerk << ","
+              << _xy_MaxJerk << ","
+              << -_z_MaxVel << ","
+              << _z_MaxVel << ","
+              << -_z_MaxAccel << ","
+              << _z_MaxAccel << ","
+              << -_z_MaxJerk << ","
+              << _z_MaxJerk << ","
+              << -_yaw_MaxVel << ","
+              << _yaw_MaxVel << ","
+              << -_yaw_MaxAccel << ","
+              << _yaw_MaxAccel << ","
+              << -_yaw_MaxJerk << ","
+              << _yaw_MaxJerk << "\n";
       }
       file.close();
       printInfo("[MPC12STATE::saveMPCSolutionsToFile] Saved MPC solutions to file: %s", _outputCSVFile.c_str());

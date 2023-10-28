@@ -628,13 +628,17 @@ bool setYawSmoothInputWeight(double w);
   int getNumOfStates(void);
   int getNumOfInputs(void);
 
-  // double getXYMaxAccel(void);
-  // double getZMaxAccel(void);
-  // double getYawMaxAccel(void);
+  double getXYMaxAccel(void);
+  double getZMaxAccel(void);
+  double getYawMaxAccel(void);
 
-  // double getXYMaxVel(void);
-  // double getZMaxVel(void);
-  // double getYawMaxVel(void);
+  double getXYMaxVel(void);
+  double getZMaxVel(void);
+  double getYawMaxVel(void);
+
+  double getXYMaxJerk(void);
+  double getZMaxJerk(void);
+  double getYawMaxJerk(void);
 
   Eigen::MatrixXd getTransitionMatrix(void);
   Eigen::MatrixXd getXYTransitionMatrix(void);
