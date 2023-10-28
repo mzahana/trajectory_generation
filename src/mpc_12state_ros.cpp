@@ -89,28 +89,28 @@ MPCROS::MPCROS(): Node("mpc_12state_trajectory_generator")
    this->declare_parameter("xy_max_velocity", 12.0);
    _mpc->setXYMaxVel( this->get_parameter("xy_max_velocity").get_parameter_value().get<double>());
 
-   this->declare_parameter("z_max_velocity", 10.0);
+   this->declare_parameter("z_max_velocity", 6.0);
    _mpc->setZMaxVel( this->get_parameter("z_max_velocity").get_parameter_value().get<double>());
 
-   this->declare_parameter("yaw_max_velocity", 120.0);
+   this->declare_parameter("yaw_max_velocity", 5.0);
    _mpc->setYawMaxVel( this->get_parameter("yaw_max_velocity").get_parameter_value().get<double>());
 
-   this->declare_parameter("xy_max_acceleration", 10.0);
+   this->declare_parameter("xy_max_acceleration", 5.0);
    _mpc->setXYMaxAccel( this->get_parameter("xy_max_acceleration").get_parameter_value().get<double>());
 
-   this->declare_parameter("z_max_acceleration", 18.0);
+   this->declare_parameter("z_max_acceleration", 5.0);
    _mpc->setZMaxAccel( this->get_parameter("z_max_acceleration").get_parameter_value().get<double>());
 
-   this->declare_parameter("yaw_max_acceleration", 200.0);
+   this->declare_parameter("yaw_max_acceleration", 10.0);
    _mpc->setYawMaxAccel( this->get_parameter("yaw_max_acceleration").get_parameter_value().get<double>());
 
-   this->declare_parameter("xy_max_jerk", 50.0);
+   this->declare_parameter("xy_max_jerk", 10.0);
    _mpc->setXYMaxJerk( this->get_parameter("xy_max_jerk").get_parameter_value().get<double>());
 
-   this->declare_parameter("z_max_jerk", 50.0);
+   this->declare_parameter("z_max_jerk", 10.0);
    _mpc->setZMaxJerk( this->get_parameter("z_max_jerk").get_parameter_value().get<double>());
 
-   this->declare_parameter("yaw_max_jerk", 400.0);
+   this->declare_parameter("yaw_max_jerk", 10.0);
    _mpc->setYawMaxJerk( this->get_parameter("yaw_max_jerk").get_parameter_value().get<double>());
 
 
@@ -163,7 +163,10 @@ MPCROS::odomCallback(const nav_msgs::msg::Odometry & msg)
 {
    // RCLCPP_INFO(this->get_logger(), "[MPCROS::odomCallback] Got odom msg");
     if(!_state_received)
+    {
+      RCLCPP_INFO(this->get_logger(), "[MPCROS::odomCallback] Received initial state");
       _state_received = true;
+    }
 
    _state_current_t = msg.header.stamp;
    _reference_frame_id = msg.header.frame_id;
@@ -184,17 +187,30 @@ MPCROS::odomCallback(const nav_msgs::msg::Odometry & msg)
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
     
+      // _current_state << msg.pose.pose.position.x,
+      //                   msg.twist.twist.linear.x,
+      //                   _current_accel(0),
+      //                   msg.pose.pose.position.y,
+      //                   msg.twist.twist.linear.y,
+      //                   _current_accel(1),
+      //                   msg.pose.pose.position.z,
+      //                   msg.twist.twist.linear.z,
+      //                   _current_accel(2),
+      //                   yaw,
+      //                   msg.twist.twist.angular.z,
+      //                   0.0;
+
       _current_state << msg.pose.pose.position.x,
-                        msg.twist.twist.linear.x,
-                        _current_accel(0),
+                        0,
+                        0,
                         msg.pose.pose.position.y,
-                        msg.twist.twist.linear.y,
-                        _current_accel(1),
+                        0,
+                        0,
                         msg.pose.pose.position.z,
-                        msg.twist.twist.linear.z,
-                        _current_accel(2),
+                        0,
+                        0,
                         yaw,
-                        msg.twist.twist.angular.z,
+                        0,
                         0.0;
 
 
@@ -212,9 +228,6 @@ MPCROS::imuCallback(const sensor_msgs::msg::Imu & msg)
                            msg.linear_acceleration.y,
                            msg.linear_acceleration.z;
 }
-
-////////////////// @todo Continue modifications from here  //////////////////
-/////////////////////////////////////////////////////////////////////////////
 
 void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
 {
@@ -489,6 +502,8 @@ bool MPCROS::mpcROSLoop(void)
    if(!_mpc->mpcLoop())
    {
       RCLCPP_ERROR(this->get_logger(),"[MPCROS::mpcROSLoop] Error in mpcLooop()");
+      // std::cout << "current_state\n" << _current_state << "\n";
+      // std::cout << "refTraj[0]:\n" << _referenceTraj.block(0,0, NUM_OF_STATES,1) << "\n";
       return false;
    }
 
