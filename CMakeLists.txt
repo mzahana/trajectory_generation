@@ -20,6 +20,7 @@ find_package(trajectory_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 #
 # mpc_6dof.cpp
@@ -84,7 +85,7 @@ target_include_directories(mpc_12state_ros_lib
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(mpc_12state_ros_lib rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs tf2 tf2_ros tf2_geometry_msgs )
+ament_target_dependencies(mpc_12state_ros_lib rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs tf2 tf2_ros tf2_geometry_msgs visualization_msgs)
 target_link_libraries(mpc_12state_ros_lib mpc_12state_lib)
 # this line to exports the library
 # ament_export_targets(mpc_12state_ros_lib HAS_LIBRARY_TARGET)

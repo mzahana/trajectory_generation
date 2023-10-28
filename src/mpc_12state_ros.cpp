@@ -415,6 +415,9 @@ MPCROS::extractSolution(void)
    auto optimal_state_traj = _mpc->getOptimalStateTraj();
    auto optimal_control_traj = _mpc->getOptimalControlTraj();
 
+   // Used to compute quaternion from yaw
+   tf2::Quaternion q_yaw;
+
    geometry_msgs::msg::PoseStamped pose_msg;
    double start_t = this->now().seconds();
    for (int i=0; i < _mpcWindow+1; i++)
@@ -425,7 +428,14 @@ MPCROS::extractSolution(void)
       pose_msg.pose.position.x = optimal_state_traj(i*nx+0);
       pose_msg.pose.position.y = optimal_state_traj(i*nx+3);
       pose_msg.pose.position.z = optimal_state_traj(i*nx+6);
-      pose_msg.pose.orientation.w=1.0; // Keep 0 rotation, for now
+
+      // compute yaw as quaternion
+      q_yaw.setRPY(0, 0, optimal_state_traj( i*nx+9 ));
+
+      pose_msg.pose.orientation.w=q_yaw.w();
+      pose_msg.pose.orientation.x=q_yaw.x();
+      pose_msg.pose.orientation.y=q_yaw.y();
+      pose_msg.pose.orientation.z=q_yaw.z();
       // _posehistory_vector.insert(_posehistory_vector.begin(), pose_msg);
       _posehistory_vector[i] = pose_msg;
 
@@ -477,6 +487,12 @@ MPCROS::extractSolution(void)
    _multidof_msg.points[0].accelerations[0].linear.x = _solution_traj_msg.states[0].acceleration.x;
    _multidof_msg.points[0].accelerations[0].linear.y = _solution_traj_msg.states[0].acceleration.y;
    _multidof_msg.points[0].accelerations[0].linear.z = _solution_traj_msg.states[0].acceleration.z;
+
+   q_yaw.setRPY(0, 0, _solution_traj_msg.states[0].yaw);
+   _multidof_msg.points[0].transforms[0].rotation.x = q_yaw.x();
+   _multidof_msg.points[0].transforms[0].rotation.y = q_yaw.y();
+   _multidof_msg.points[0].transforms[0].rotation.z = q_yaw.z();
+   _multidof_msg.points[0].transforms[0].rotation.w = q_yaw.w();
 
    return;
 

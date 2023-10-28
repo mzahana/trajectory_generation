@@ -48,6 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <geometry_msgs/msg/pose_array.hpp>
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
+#include "visualization_msgs/msg/marker.hpp"
 
 using namespace std::chrono_literals;
 using std::placeholders::_1;
@@ -68,6 +69,7 @@ private:
    rclcpp::Publisher<custom_trajectory_msgs::msg::StateTrajectory>::SharedPtr _desired_traj_pub; /** Desired trajectory sent to the trajectory planner/sampler */
    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr       _poseHistory_pub; /** ROS Publisher for _posehistory_vector */
    rclcpp::Publisher<trajectory_msgs::msg::MultiDOFJointTrajectory>::SharedPtr _multiDofTraj_pub; /** To publish first MPC control solution to the geometric controller */
+   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr _yaw_marker_pub;
 
    bool                          _debug;
    double                        _dt;                    /** Prediction time step in seconds */
