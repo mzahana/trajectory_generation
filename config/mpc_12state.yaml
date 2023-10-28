@@ -28,22 +28,22 @@ mpc_12state_node:
     # [x,y,z]
     xy_max_acceleration: 5.0
     z_max_acceleration: 5.0
-    yaw_max_acceleration: 200.0
+    yaw_max_acceleration: 10.0 # rad/s/s
 
     # 3D jerk limits in m/s/s/s. Should be >= 0
     xy_max_jerk: 10.0
     z_max_jerk: 10.0
-    yaw_max_jerk: 10.0
+    yaw_max_jerk: 10.0 # rad/s/s/s
 
     # Optimization penalty on the states (Q)
-    xy_state_weight: 1000.0
-    z_state_weight: 1000.0
-    yaw_state_weight: 1000.0
+    xy_state_weight: 800.0
+    z_state_weight: 800.0
+    yaw_state_weight: 800.0
 
     # Optimization penalty on the control inuputs (R)
-    xy_input_weight: 0.0
-    z_input_weight: 0.0
-    yaw_input_weight: 0.1
+    xy_input_weight: 10.0
+    z_input_weight: 10.0
+    yaw_input_weight: 1.0
 
     # Smooth control signal, to avoid large control jumps 
     enable_control_smoothing: False
