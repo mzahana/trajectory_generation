@@ -760,7 +760,14 @@ bool MPC12STATE::computeXYBounds(void)
       {
          double a_zt = _z_x_opt(NUM_OF_Z_STATES*i+ Z_AZ_IDX, 0);
          double d = a_zt /_z_MaxAccel; // Make sure the  _z_MaxVel > 0!!
-         double v_hmax_t = _xy_MaxVel*std::sqrt(1 - d*d);
+         double v_p = 0.9;
+         double v_hmax_t = _xy_MaxVel*v_p;
+         // Handle numerical issues
+         if( (1-d*d)>=0)
+            v_hmax_t = _xy_MaxVel*std::sqrt(1 - d*d);
+         else
+            printWarn("at time step %d :sqrt(%0.5f) is invalid. Using %0.2f %% of the max horizontal vel = %0.2f", i, 1-d*d , v_p*100, v_hmax_t);
+
 
          _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_VX_IDX, 0) = v_hmax_t; // upper bound on vx
          _xy_Max(NUM_OF_XY_STATES*(i-1) + XY_VY_IDX, 0) = v_hmax_t; // upper bound on vy

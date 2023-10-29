@@ -472,23 +472,24 @@ MPCROS::extractSolution(void)
    // This can be used by a lower level controller
 
    _multidof_msg.header.frame_id = _reference_frame_id;
+   int ui=_solution_traj_msg.states.size()-1;
    _multidof_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(start_t*1e9));
    _multidof_msg.points.resize(1);
    _multidof_msg.points[0].transforms.resize(1);
    _multidof_msg.points[0].velocities.resize(1);
    _multidof_msg.points[0].accelerations.resize(1);
 
-   _multidof_msg.points[0].transforms[0].translation.x = _solution_traj_msg.states[0].position.x;
-   _multidof_msg.points[0].transforms[0].translation.y = _solution_traj_msg.states[0].position.y;
-   _multidof_msg.points[0].transforms[0].translation.z = _solution_traj_msg.states[0].position.z;
-   _multidof_msg.points[0].velocities[0].linear.x = _solution_traj_msg.states[0].velocity.x;
-   _multidof_msg.points[0].velocities[0].linear.y = _solution_traj_msg.states[0].velocity.y;
-   _multidof_msg.points[0].velocities[0].linear.z = _solution_traj_msg.states[0].velocity.z;
-   _multidof_msg.points[0].accelerations[0].linear.x = _solution_traj_msg.states[0].acceleration.x;
-   _multidof_msg.points[0].accelerations[0].linear.y = _solution_traj_msg.states[0].acceleration.y;
-   _multidof_msg.points[0].accelerations[0].linear.z = _solution_traj_msg.states[0].acceleration.z;
+   _multidof_msg.points[0].transforms[0].translation.x = _solution_traj_msg.states[ui].position.x;
+   _multidof_msg.points[0].transforms[0].translation.y = _solution_traj_msg.states[ui].position.y;
+   _multidof_msg.points[0].transforms[0].translation.z = _solution_traj_msg.states[ui].position.z;
+   _multidof_msg.points[0].velocities[0].linear.x = _solution_traj_msg.states[ui].velocity.x;
+   _multidof_msg.points[0].velocities[0].linear.y = _solution_traj_msg.states[ui].velocity.y;
+   _multidof_msg.points[0].velocities[0].linear.z = _solution_traj_msg.states[ui].velocity.z;
+   _multidof_msg.points[0].accelerations[0].linear.x = _solution_traj_msg.states[ui].acceleration.x;
+   _multidof_msg.points[0].accelerations[0].linear.y = _solution_traj_msg.states[ui].acceleration.y;
+   _multidof_msg.points[0].accelerations[0].linear.z = _solution_traj_msg.states[ui].acceleration.z;
 
-   q_yaw.setRPY(0, 0, _solution_traj_msg.states[0].yaw);
+   q_yaw.setRPY(0, 0, _solution_traj_msg.states[ui].yaw);
    _multidof_msg.points[0].transforms[0].rotation.x = q_yaw.x();
    _multidof_msg.points[0].transforms[0].rotation.y = q_yaw.y();
    _multidof_msg.points[0].transforms[0].rotation.z = q_yaw.z();
