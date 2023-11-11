@@ -274,6 +274,7 @@ void MPCROS::refPathCallback(const nav_msgs::msg::Path & msg)
    // RCLCPP_INFO(this->get_logger(), "Setting _referenceTraj");
    // Update _referenceTraj
    _referenceTraj.setZero();
+   int last_ref_idx = msg.poses.size()-1;
    for (int i=0; i<_mpcWindow+1; i++)
    {
       _referenceTraj(i*NUM_OF_STATES+0,0) = msg.poses[i].pose.position.x;
