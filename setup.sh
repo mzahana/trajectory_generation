@@ -68,6 +68,16 @@ else
     sudo make install
 fi
 
+bashrc_file="$HOME/.bashrc"
+line_to_check="export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH"
+
+if ! grep -qF "$line_to_check" "$bashrc_file"; then
+    echo "$line_to_check" >> "$bashrc_file"
+    echo "LD_LIBRARY_PATH is added in .bashrc file."
+else
+    echo "LD_LIBRARY_PATH is already updated in .bashrc file."
+fi
+
 # bashrc_file="$HOME/.bashrc"
 # line_to_check="export OsqpEigen_DIR=$OSQP_SRC/osqp-eigen/install"
 
