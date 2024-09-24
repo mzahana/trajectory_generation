@@ -1022,7 +1022,7 @@ MPC12STATE::initQPSolver(void)
    if(_debug)
       printInfo("Initializing XY QP solver ...");
    _xy_qpSolver.settings()->setVerbosity(_debug);
-   _xy_qpSolver.settings()->setWarmStart(false);
+   _xy_qpSolver.settings()->setWarmStart(true);
    _xy_qpSolver.data()->setNumberOfVariables(NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow);
    _xy_qpSolver.data()->setNumberOfConstraints(2*NUM_OF_XY_STATES*(_mpcWindow+1) + NUM_OF_XY_INPUTS*_mpcWindow + (NUM_OF_XY_MIXED_ACCEL_CONST+NUM_OF_XY_MIXED_VEL_CONST)*_mpcWindow);
    _xy_hessian_sparse = _xy_hessian.sparseView();
@@ -1042,7 +1042,7 @@ MPC12STATE::initQPSolver(void)
    if(_debug)
       printInfo("Initializing Z QP solver ...");
    _z_qpSolver.settings()->setVerbosity(_debug);
-   _z_qpSolver.settings()->setWarmStart(false);
+   _z_qpSolver.settings()->setWarmStart(true);
    _z_qpSolver.data()->setNumberOfVariables(NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow);
    _z_qpSolver.data()->setNumberOfConstraints(2*NUM_OF_Z_STATES*(_mpcWindow+1) + NUM_OF_Z_INPUTS*_mpcWindow);
    _z_hessian_sparse = _z_hessian.sparseView();
