@@ -186,6 +186,88 @@ private:
   Eigen::VectorXd           _x_opt;               /** Entire optimal state (x, x_dot, x_ddot, yaw, yaw_dot, yaw_ddot)*/
   Eigen::VectorXd           _u_opt;               /** Entire optimal control inputs (jx, jy, jz, jyaw)*/
 
+  /** Per-axis solver diagnostics.
+   *
+   * The three QPs fail for different reasons and a single aggregate failure
+   * count cannot be acted on: an infeasible Z problem (thrust budget) and an
+   * infeasible XY problem (reference too aggressive) call for opposite fixes.
+   * These are surfaced on the health topic so a bad flight is attributable
+   * from the log alone.
+   */
+  unsigned long             _z_solve_fail{0}, _xy_solve_fail{0}, _yaw_solve_fail{0};
+  unsigned long             _z_solve_fail_streak{0};  /** consecutive Z failures; gates the one-shot state dump */
+  unsigned long             _z_inaccurate{0}, _xy_inaccurate{0}, _yaw_inaccurate{0};
+  std::string               _last_fail_reason{"none"};
+
+  /** Soft state constraints.
+   *
+   * The dynamics and the jerk (input) bounds are HARD. Every state bound --
+   * velocity, acceleration, the altitude floor and the XY mixed-norm rows --
+   * is relaxed by a non-negative slack under an exact L1 penalty. With u = 0
+   * always admissible, the QP is feasible for ANY initial state, so a
+   * measurement outside the planning envelope can no longer produce
+   * `primal_infeasible` (i.e. no setpoint, a gap in the command stream, and a
+   * controller failsafe) -- it produces a solution that returns to the
+   * envelope as fast as the jerk limit allows.
+   *
+   * The penalty must be large enough that the slack is exactly zero whenever
+   * the hard-constrained problem is feasible (exact penalty), which is
+   * verified in test_mpc_fixes.
+   */
+  double                    _soft_state_penalty_ratio{3.0}; /** safety factor on the exact-penalty weight; see softPenalty() */
+  double                    _qp_time_limit{0.010};  /** wall-clock bound per QP solve, seconds; 0 = unlimited */
+
+  /** Per-axis exact-penalty weight on a state-constraint violation.
+   *
+   * The penalty is exact -- slack identically zero whenever the hard-bounded
+   * problem is feasible -- only if it exceeds the largest Lagrange multiplier
+   * of the constraint it replaces. For the velocity bound that multiplier is
+   * how much tracking cost a unit of extra speed buys:
+   *
+   *     relaxing v by d gains ~ d*dt*i of position at step i, so
+   *     dJ/dd  ~  sum_i 2*q*e*dt*i  ~  q*e*dt*N^2
+   *
+   * with q the state weight and e the reference distance. So the weight must
+   * scale with BOTH the state weight and the current reference error -- a
+   * constant is wrong at one end or the other, and both ends are reachable
+   * here (the reference is a target hundreds of metres away early in an
+   * engagement, and metres away at the endgame). Measured: with q = 5000 and
+   * e = 500 m, a weight of 5e6 lets the plan exceed z_max_accel by 0.83 m/s^2
+   * while 5e7 -- which is what this expression gives -- keeps the slack at
+   * 1e-14.
+   *
+   * Larger is NOT safer: the weight sits in the same gradient as tracking
+   * terms orders of magnitude smaller, and an over-large spread costs solver
+   * accuracy (measured as max_iter / solved_inaccurate, i.e. dropped control
+   * cycles).
+   */
+  double softPenalty(double state_weight, double ref_err) const
+  {
+    const double N = static_cast<double>(_mpcWindow);
+    return _soft_state_penalty_ratio * state_weight * std::max(1.0, ref_err) * _dt * N * N;
+  }
+
+  /** Largest reference distance over the horizon, per axis group. */
+  double xyRefError(void) const;
+  double zRefError(void) const;
+  double yawRefError(void) const;
+  double                    _z_max_slack{0.0}, _xy_max_slack{0.0}, _yaw_max_slack{0.0};
+  unsigned long             _soft_active_count{0};  /** solves where any slack was non-negligible */
+  unsigned long             _soft_active_streak{0}; /** consecutive such solves */
+  int                       _soft_warn_countdown{0}; /** throttles the console warning */
+  static constexpr int      kSoftWarnThrottle = 100; /** solves between warnings (5 s at 20 Hz) */
+
+  /** Number of slack variables per axis (one per softened constraint row).
+   * Only steps 1..N are bounded: x(0) is a measurement pinned by the equality
+   * constraint and carries no inequality rows at all. */
+  int zNumSlack(void) const { return NUM_OF_Z_STATES*_mpcWindow; }
+  int yawNumSlack(void) const { return NUM_OF_YAW_STATES*_mpcWindow; }
+  int xyNumStateSlack(void) const { return NUM_OF_XY_STATES*_mpcWindow; }
+  int xyNumMixedSlack(void) const {
+    return (NUM_OF_XY_MIXED_VEL_CONST + NUM_OF_XY_MIXED_ACCEL_CONST)*_mpcWindow;
+  }
+  int xyNumSlack(void) const { return xyNumStateSlack() + xyNumMixedSlack(); }
+
   //////////////////////// XY variables /////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////
   
@@ -600,6 +682,40 @@ bool setYawSmoothInputWeight(double w);
    * @brief This is the main loop, which executes MPC control loop.
    */
   bool mpcLoop(void);
+
+  /** Per-axis QP diagnostics, for the health topic. */
+  unsigned long zSolveFailures(void) const { return _z_solve_fail; }
+  unsigned long xySolveFailures(void) const { return _xy_solve_fail; }
+  unsigned long yawSolveFailures(void) const { return _yaw_solve_fail; }
+  unsigned long inaccurateSolves(void) const {
+    return _z_inaccurate + _xy_inaccurate + _yaw_inaccurate;
+  }
+  const std::string& lastFailReason(void) const { return _last_fail_reason; }
+
+  /** Soft-constraint diagnostics.
+   *
+   * A non-zero slack means the planned trajectory is outside the velocity /
+   * acceleration / altitude envelope because the measured state left it and
+   * the jerk limit cannot bring it back within the horizon. That is the
+   * correct response, but it must never be silent: sustained slack means the
+   * vehicle is being asked to fly outside its envelope.
+   */
+  double maxSlackZ(void) const { return _z_max_slack; }
+  double maxSlackXY(void) const { return _xy_max_slack; }
+  double maxSlackYaw(void) const { return _yaw_max_slack; }
+  unsigned long softConstraintActiveCount(void) const { return _soft_active_count; }
+
+  /** Sets the exact-penalty weight on state-constraint violations, as a
+   * multiple of the per-axis state weight. Must be well above 1 or the solver
+   * buys tracking error with envelope violations. See test_mpc_fixes T1.10c. */
+  bool setSoftStatePenalty(double ratio);
+
+  /** Wall-clock bound per QP solve, seconds. 0 disables it.
+   *
+   * A latency guard, not a correctness setting: an iteration cap does not bound
+   * time, and a late setpoint is worse for the control loop than a dropped one.
+   * Set to 0 in unit tests so they measure the maths, not the machine. */
+  bool setQPTimeLimit(double seconds);
 
   /**
    * @brief Sets the path to the output file, _outputCSVFile

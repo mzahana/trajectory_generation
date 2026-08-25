@@ -49,6 +49,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "visualization_msgs/msg/marker.hpp"
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
+#include <mutex>
 
 using namespace std::chrono_literals;
 using std::placeholders::_1;
@@ -89,6 +91,31 @@ private:
    builtin_interfaces::msg::Time _ref_traj_last_t;       /** Time stamp of the last reference trajectory */
 
    bool                          _pub_pose_path;         /** Whether to publish MPC predicted path for visualization in RViz */
+   bool                          _odom_twist_in_body_frame; /** True if odom twist is in child/body frame (mavros default) and must be rotated to world */
+   int                           _cmd_sample_index;      /** Which horizon sample is published as the controller setpoint (1 = next step) */
+
+   /////////////////// Fixed-rate solving & health monitoring (T1.7) ////////////
+   rclcpp::TimerBase::SharedPtr  _mpc_timer;             /** Owns the MPC solve rate, decoupling it from the reference-publisher rate */
+   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticStatus>::SharedPtr _health_pub; /** Solver status, solve time, staleness */
+   double                        _mpc_rate;              /** MPC solve rate, Hz. <=0 keeps the legacy solve-in-callback behaviour */
+   double                        _ref_timeout;           /** Max age of the reference trajectory before it is considered stale, seconds */
+   double                        _odom_timeout;          /** Max age of odometry before it is considered stale, seconds */
+   int                           _max_consecutive_failures; /** Failures before the node reports an ERROR-level health status */
+   int                           _consecutive_failures;  /** Current run of consecutive failed/skipped solves */
+   uint64_t                      _solve_count;           /** Total successful solves */
+   uint64_t                      _fail_count;            /** Total failed solves */
+   double                        _last_solve_ms;         /** Wall time of the most recent mpcLoop(), milliseconds */
+   double                        _max_solve_ms;          /** Worst observed solve time, milliseconds */
+   rclcpp::Time                  _last_ref_stamp;        /** Node-clock time the last reference trajectory was accepted */
+   rclcpp::Time                  _last_odom_stamp;       /** Node-clock time the last odometry was accepted */
+   bool                          _have_ref;              /** A reference trajectory has been received at least once */
+   std::mutex                    _data_mutex;            /** Guards _current_state/_referenceTraj between callbacks and the timer */
+
+   /** @brief Fixed-rate solve: validates freshness, solves, publishes, reports health. */
+   void mpcTimerCallback(void);
+
+   /** @brief Publish a DiagnosticStatus describing solver health. */
+   void publishHealth(uint8_t level, const std::string & message);
    std::vector<geometry_msgs::msg::PoseStamped> _posehistory_vector; /** Holds the predicted positions of the MPC, for visualization */
 
    trajectory_msgs::msg::MultiDOFJointTrajectory _multidof_msg;

@@ -1,3 +1,21 @@
+# ============================================================================
+# PROVENANCE WARNING (2026-08-25): parts of this file were never flown.
+#
+# The SITL harness (interception_guidance/test/scripts/run_matrix.py) launched
+# the node with -p args only and never loaded this yaml. Every validated
+# campaign therefore ran on the node's DECLARED defaults, which differ from
+# this file on the weights and yaw limits:
+#     as-flown (validated): state weights 7000/7000/7000, input 10/10/0.1,
+#                           yaw_max_velocity 5.0
+#     this file (unflown):  state weights 5000/7000/1000, input 200/200/100,
+#                           yaw_max_velocity 2.0
+# The unflown input weights were measured to be a REGRESSION (Q/R 25 vs 700:
+# a weaving jink target outran the smoothed tracker, 65 m x3). The embedded
+# MPC in interception_guidance defaults to the as-flown values.
+#
+# If you launch the standalone node WITH this file, you are flying an
+# unvalidated configuration. Reconcile before trusting it.
+# ============================================================================
 mpc_12state_node:
   ros__parameters:
     debug: False
@@ -11,6 +29,33 @@ mpc_12state_node:
     # Number of MPC horizon steps, shoud be > 1
     mpc_window: 10
 
+    # MPC solve rate, Hz. The node owns its own rate so the control loop is not
+    # coupled to the reference publisher. Set <= 0 for the legacy behaviour of
+    # solving inside the reference callback.
+    mpc_rate: 20.0
+
+    # Freshness gates, seconds. Solving on stale data produces a confident
+    # setpoint derived from a target that may no longer be there; skipping lets
+    # the controller's hold-on-setpoint-loss failsafe take over instead.
+    # Also the command-authority handover to terminal guidance: the MPC must
+    # fall silent quickly once guidance stops feeding it, or two sources command
+    # the controller at once. See mpc_12state_ros.cpp. Reference arrives at
+    # 50 Hz, so 0.15 s = 7 missed messages.
+    ref_timeout: 0.15
+    odom_timeout: 0.3
+
+    # Consecutive failed solves before health is reported at ERROR level
+    max_consecutive_failures: 5
+
+    # nav_msgs/Odometry twist is expressed in child_frame_id. For mavros
+    # local_position/odom that is the BODY frame, so it must be rotated to world.
+    odom_twist_in_body_frame: True
+
+    # Which sample of the optimal horizon is published as the controller
+    # setpoint. Must be a NEAR sample: the horizon end is a far "carrot" that
+    # the geometric controller tracks poorly.
+    cmd_sample_index: 2
+
     # Minimum altitude above ground in UAV local frame, meter(s)
     # This is just for safety, to avoid crashing into ground
     minimum_altitude: -1.0
@@ -18,21 +63,36 @@ mpc_12state_node:
     # Localization frame id. Pose trajectory is published  with respect to it
     reference_frame_id: "interceptor/odom"
 
+    # ---------------------------------------------------------------------
+    # Dynamic limits. These are NOT free parameters: see
+    # docs/PERFORMANCE_ENVELOPE.md. A multirotor holding altitude while
+    # accelerating horizontally at a_h needs thrust m*sqrt(g^2 + a_h^2).
+    # Commanding an a_h that consumes ~100% of max thrust leaves the attitude
+    # controller no authority, so the vehicle sinks and tracking diverges.
+    #
+    # Values below are for SITL (m = 2.0 kg, max_thrust 27.5 N, TWR 1.40)
+    # using a usable-thrust fraction of 0.8:  a_h_safe = 4.98 m/s^2.
+    #
+    # WARNING for the real 2.5 kg airframe (TWR 1.12): a_h_safe is
+    # NEGATIVE -- 6.0 m/s^2 needs 104% of available thrust. Use
+    # xy_max_acceleration <= 3.0 and z_max_acceleration <= 1.0 there, and see
+    # the propulsion recommendation in the envelope doc.
+    # ---------------------------------------------------------------------
+
     # 3D velocity limits in m/s. Should be >= 0
-    # [x,y,z]
     xy_max_velocity: 12.0
-    z_max_velocity: 7.0
+    z_max_velocity: 4.0
     yaw_max_velocity: 2.0 # rad/s
 
-    # 3D Net acceleration limits in m/s/s. Should be >= 0
-    # [x,y,z]
-    xy_max_acceleration: 6.0
-    z_max_acceleration: 10.0
+    # 3D net acceleration limits in m/s/s. Should be >= 0
+    xy_max_acceleration: 4.5   # a_h_safe(2.0 kg, eta=0.8) = 4.98
+    z_max_acceleration: 3.5    # climb is bounded by T_max/m - g = 3.94 at 2.0 kg
     yaw_max_acceleration: 10.0 # rad/s/s
 
     # 3D jerk limits in m/s/s/s. Should be >= 0
+    # Keep inside the attitude-loop bandwidth (attctrl_tau 0.3 s).
     xy_max_jerk: 30.0
-    z_max_jerk: 40.0
+    z_max_jerk: 20.0
     yaw_max_jerk: 10.0 # rad/s/s/s
 
     # Optimization penalty on the states (Q)
@@ -44,6 +104,26 @@ mpc_12state_node:
     xy_input_weight: 200.0
     z_input_weight: 200.0
     yaw_input_weight: 100.0
+
+    # Safety factor on the exact-penalty weight for state-constraint violations.
+    #
+    # The velocity, acceleration and altitude-floor bounds are SOFT (slack
+    # variables) so that a measured state outside the envelope can never make
+    # the QP infeasible -- infeasible means no setpoint, a gap in the command
+    # stream and a controller failsafe. The dynamics and the jerk bounds stay
+    # HARD. The penalty weight itself is derived per cycle from the state
+    # weights above and the current reference distance (see softPenalty() in
+    # mpc_12state.hpp); this is the multiplier on top of that.
+    #
+    # Must be > 1 or the solver buys tracking error by planning outside the
+    # envelope. Bigger is NOT safer: it spreads the cost magnitudes and costs
+    # solver accuracy, i.e. dropped control cycles. Measured over 3000
+    # randomised solves: ratio 2 leaked ~1 m/s of envelope, ratio 3 leaked
+    # <0.1, ratio 5-10 raised the dropped-cycle rate 5-40x.
+    #
+    # Watch max_slack_* on mpc/out/health: sustained non-zero means the vehicle
+    # is being flown outside its limits.
+    soft_state_penalty_ratio: 3.0
 
     # Smooth control signal, to avoid large control jumps 
     enable_control_smoothing: False

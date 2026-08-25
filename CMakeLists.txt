@@ -21,6 +21,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(diagnostic_msgs REQUIRED)
 
 #
 # mpc_6dof.cpp
@@ -85,7 +86,7 @@ target_include_directories(mpc_12state_ros_lib
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(mpc_12state_ros_lib rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs tf2 tf2_ros tf2_geometry_msgs visualization_msgs)
+ament_target_dependencies(mpc_12state_ros_lib rclcpp nav_msgs sensor_msgs custom_trajectory_msgs trajectory_msgs tf2 tf2_ros tf2_geometry_msgs visualization_msgs diagnostic_msgs)
 target_link_libraries(mpc_12state_ros_lib mpc_12state_lib)
 # this line to exports the library
 # ament_export_targets(mpc_12state_ros_lib HAS_LIBRARY_TARGET)
@@ -140,9 +141,23 @@ target_link_libraries(test_mpc_12state
   mpc_12state_lib
 )
 
+#
+# Build test_mpc_fixes.cpp  (regression tests for the hardening fixes)
+#
+add_executable(test_mpc_fixes
+  test/test_mpc_fixes.cpp
+)
+target_include_directories(test_mpc_fixes
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(test_mpc_fixes
+  mpc_12state_lib
+)
+
 # Install targets
 install(
-  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib mpc_12state_ros_lib test_mpc_12state mpc_12state_node
+  TARGETS mpc_6dof_lib mpc_ros_lib mpc_node test_mpc_6dof mpc_12state_lib mpc_12state_ros_lib test_mpc_12state test_mpc_fixes mpc_12state_node
   EXPORT export_${PROJECT_NAME}
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -155,7 +170,9 @@ install(
 
 # Export package information
 ament_export_targets(export_${PROJECT_NAME})
-ament_export_dependencies(rclcpp)
+# mpc_12state_lib's link interface names OsqpEigen::OsqpEigen / osqp::osqp and
+# its headers include Eigen + OsqpEigen, so consumers must find those packages.
+ament_export_dependencies(rclcpp eigen3_cmake_module Eigen3 osqp OsqpEigen)
 
 
 # install(
